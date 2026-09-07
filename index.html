@@ -65,10 +65,6 @@
       min-height: 80px;
       border: 1px dashed #d3d3d3;
     }
-    .timetable-header.exam-active {
-      background: #fff3cd;
-      border: 1px solid #ffc107;
-    }
     .day-cell {
       border: 1px solid #ddd;
       min-height: 90px;
@@ -153,6 +149,14 @@
       grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 10px;
     }
+
+    .exam-date-row {
+      background: #fdf8e4;
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      border: 1px solid #ffeba8;
+    }
   </style>
 
   <!-- Firebase SDK (compat版) -->
@@ -178,31 +182,25 @@
 
     <hr style="margin: 20px 0;">
 
-    <h4>■ 定期試験期間と専用時間割の設定</h4>
+    <h4>■ 定期試験期間と日別時間割（最大3限）の設定</h4>
     <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px;">
       <div style="flex: 1; min-width: 120px;">
         <label>開始日</label>
-        <input type="date" id="exam-start">
+        <input type="date" id="exam-start" onchange="generateExamDateInputs()">
       </div>
       <div style="flex: 1; min-width: 120px;">
         <label>終了日</label>
-        <input type="date" id="exam-end">
+        <input type="date" id="exam-end" onchange="generateExamDateInputs()">
       </div>
       <div style="flex: 1; min-width: 120px;">
         <label>試験名</label>
         <input type="text" id="exam-name" placeholder="例: 中間テスト">
       </div>
     </div>
-    <p style="font-size: 0.85em; margin: 5px 0;"><strong>試験期間中の時間割（例: 1〜3限 科目名など）:</strong></p>
-    <div id="exam-timetable-inputs" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 5px; margin-bottom: 10px;">
-      <input type="text" id="exam-tt-1" placeholder="1限">
-      <input type="text" id="exam-tt-2" placeholder="2限">
-      <input type="text" id="exam-tt-3" placeholder="3限">
-      <input type="text" id="exam-tt-4" placeholder="4限">
-      <input type="text" id="exam-tt-5" placeholder="5限">
-      <input type="text" id="exam-tt-6" placeholder="6限">
-    </div>
-    <button type="button" onclick="addExamSchedule()">定期試験日程・時間割を登録（要パスワード）</button>
+
+    <div id="exam-daily-inputs-container"></div>
+
+    <button type="button" id="btn-save-exam" onclick="addExamSchedule()" style="display:none; margin-top:10px;">定期試験日程・時間割を登録（要パスワード）</button>
     <div class="vacation-list" id="exam-list-display"></div>
 
     <hr style="margin: 20px 0;">
@@ -446,19 +444,21 @@
       cell.innerHTML = `<div class="day-number">${date}</div>`;
 
       // 定期試験の変則時間割判定
-      const activeExam = checkDateInExam(dateStr);
-      if (activeExam) {
+      const examInfo = checkExamForDate(dateStr);
+      if (examInfo) {
         const examEl = document.createElement('div');
-        examEl.style.cssText = 'font-size:0.7em; background:#fff3cd; border:1px solid #ffc107; padding:2px; margin-bottom:4px; border-radius:3px;';
-        let examHtml = `<strong>📝 ${escapeHTML(activeExam.name)}</strong><br>`;
-        if (activeExam.timetable) {
-          for (let h = 1; h <= 6; h++) {
-            if (activeExam.timetable[h]) {
-              examHtml += `${h}:${escapeHTML(activeExam.timetable[h])} `;
-              if (h % 2 === 0) examHtml += '<br>';
+        examEl.style.cssText = 'font-size:0.75em; background:#fff3cd; border:1px solid #ffc107; padding:3px; margin-bottom:4px; border-radius:3px;';
+        let examHtml = `<strong>📝 ${escapeHTML(examInfo.name)}</strong><br>`;
+        let hasExamTt = false;
+        if (examInfo.dailySchedule) {
+          for (let h = 1; h <= 3; h++) {
+            if (examInfo.dailySchedule[h]) {
+              examHtml += `${h}:${escapeHTML(examInfo.dailySchedule[h])}<br>`;
+              hasExamTt = true;
             }
           }
         }
+        if (!hasExamTt) examHtml += '<span style="color:#666;">（時間割未設定）</span>';
         examEl.innerHTML = examHtml;
         cell.appendChild(examEl);
       }
@@ -526,14 +526,18 @@
     });
   }
 
-  function checkDateInExam(dateStr) {
+  function checkExamForDate(dateStr) {
     const target = new Date(dateStr);
-    return examsData.find(e => {
-      if (!e || !e.start || !e.end) return false;
+    for (let e of examsData) {
+      if (!e || !e.start || !e.end) continue;
       const eStart = new Date(e.start);
       const eEnd = new Date(e.end);
-      return (target >= eStart && target <= eEnd);
-    });
+      if (target >= eStart && target <= eEnd) {
+        const dailySchedule = (e.schedules && e.schedules[dateStr]) || null;
+        return { name: e.name, dailySchedule };
+      }
+    }
+    return null;
   }
 
   function changeMonth(diff) {
@@ -559,7 +563,54 @@
     pushData('timetable', data);
   }
 
-  /* --- 定期試験管理 --- */
+  /* --- 定期試験管理（日別3限まで） --- */
+  function generateExamDateInputs() {
+    const startStr = document.getElementById('exam-start').value;
+    const endStr = document.getElementById('exam-end').value;
+    const container = document.getElementById('exam-daily-inputs-container');
+    const btnSave = document.getElementById('btn-save-exam');
+
+    if (!startStr || !endStr) {
+      container.innerHTML = '';
+      btnSave.style.display = 'none';
+      return;
+    }
+
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+
+    if (start > end) {
+      container.innerHTML = '<p style="color:red;">開始日は終了日より前の日付にしてください。</p>';
+      btnSave.style.display = 'none';
+      return;
+    }
+
+    let curr = new Date(start);
+    let html = '<p style="font-size:0.85em; margin: 10px 0 5px 0;"><strong>各日の試験時間割（最大3限目まで）:</strong></p>';
+    
+    while (curr <= end) {
+      const dateVal = curr.toISOString().split('T')[0];
+      const m = curr.getMonth() + 1;
+      const d = curr.getDate();
+      const dayName = dayNames[curr.getDay()];
+
+      html += `
+        <div class="exam-date-row">
+          <strong style="font-size:0.85em;">📅 ${m}/${d} (${dayName})</strong>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 3px;">
+            <input type="text" id="exam-input-${dateVal}-1" placeholder="1限">
+            <input type="text" id="exam-input-${dateVal}-2" placeholder="2限">
+            <input type="text" id="exam-input-${dateVal}-3" placeholder="3限">
+          </div>
+        </div>
+      `;
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    container.innerHTML = html;
+    btnSave.style.display = 'inline-block';
+  }
+
   function addExamSchedule() {
     const pass = prompt('定期試験を設定するにはHR委員のパスワード（8192）を入力してください:');
     if (pass !== '8192') {
@@ -567,29 +618,39 @@
       return;
     }
 
-    const start = document.getElementById('exam-start').value;
-    const end = document.getElementById('exam-end').value;
+    const startStr = document.getElementById('exam-start').value;
+    const endStr = document.getElementById('exam-end').value;
     const name = document.getElementById('exam-name').value;
 
-    if (!start || !end || !name) {
+    if (!startStr || !endStr || !name) {
       alert('試験の開始日・終了日・名称を入力してください。');
       return;
     }
 
-    let timetable = {};
-    for (let h = 1; h <= 6; h++) {
-      timetable[h] = document.getElementById(`exam-tt-${h}`).value || '';
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+
+    let schedules = {};
+    let curr = new Date(start);
+
+    while (curr <= end) {
+      const dateVal = curr.toISOString().split('T')[0];
+      schedules[dateVal] = {
+        1: document.getElementById(`exam-input-${dateVal}-1`)?.value || '',
+        2: document.getElementById(`exam-input-${dateVal}-2`)?.value || '',
+        3: document.getElementById(`exam-input-${dateVal}-3`)?.value || ''
+      };
+      curr.setDate(curr.getDate() + 1);
     }
 
-    examsData.push({ start, end, name, timetable });
+    examsData.push({ start: startStr, end: endStr, name, schedules });
     pushData('exams', examsData);
 
     document.getElementById('exam-start').value = '';
     document.getElementById('exam-end').value = '';
     document.getElementById('exam-name').value = '';
-    for (let h = 1; h <= 6; h++) {
-      document.getElementById(`exam-tt-${h}`).value = '';
-    }
+    document.getElementById('exam-daily-inputs-container').innerHTML = '';
+    document.getElementById('btn-save-exam').style.display = 'none';
   }
 
   function deleteExamSchedule(idx) {
