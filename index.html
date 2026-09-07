@@ -15,7 +15,7 @@
       background-color: var(--bg-color);
       color: var(--text-color);
       margin: 0;
-      padding: 20px;
+      padding: 10px;
     }
     .container {
       max-width: 1000px;
@@ -25,10 +25,17 @@
 
     .panel {
       background: white;
-      padding: 20px;
+      padding: 15px;
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
       margin-bottom: 20px;
+    }
+
+    /* スマホ対応：カレンダー表示部分の横スクロールエリア */
+    .calendar-scroll-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     .calendar-header {
@@ -42,8 +49,9 @@
       grid-template-columns: repeat(7, 1fr);
       gap: 5px;
       background: white;
-      padding: 10px;
+      padding: 5px;
       border-radius: 8px;
+      min-width: 600px; /* スマホで崩れないよう最低横幅を確保 */
     }
     .day-header {
       font-weight: bold;
@@ -71,6 +79,10 @@
       padding: 2px 4px;
       margin-bottom: 2px;
       border-radius: 3px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      word-break: break-all;
     }
     .event-shared {
       background: #e3f2fd;
@@ -96,25 +108,35 @@
       background: var(--primary-color);
       color: white;
       border: none;
-      padding: 10px 15px;
+      padding: 8px 12px;
       border-radius: 4px;
       cursor: pointer;
     }
+    .btn-small {
+      padding: 2px 6px;
+      font-size: 0.75em;
+      margin-left: 3px;
+      background: #6c757d;
+      flex-shrink: 0;
+    }
+    .btn-danger { background: #dc3545; }
+    .btn-edit { background: #ffc107; color: #000; }
 
-    .console-box {
-      background: #1e1e1e;
-      color: #00ff66;
-      font-family: 'Courier New', Courier, monospace;
-      padding: 15px;
-      border-radius: 5px;
-      height: 150px;
-      overflow-y: auto;
+    .card-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-top: 15px;
     }
-    .console-entry {
-      margin-bottom: 8px;
-      border-bottom: 1px dashed #333;
-      padding-bottom: 4px;
+    .card-item {
+      border: 1px solid #ddd;
+      padding: 12px;
+      border-radius: 4px;
+      background: #fafafa;
     }
+    .card-item.hr-notice { border-left: 5px solid #007bff; }
+    .card-item.task { border-left: 5px solid #ff9800; }
+
     .vacation-list {
       margin-top: 10px;
       font-size: 0.85em;
@@ -127,6 +149,13 @@
       margin-bottom: 15px;
       text-align: center;
       font-size: 0.9em;
+    }
+
+    /* 時間割入力のレスポンシブ */
+    .timetable-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
     }
   </style>
 
@@ -147,23 +176,23 @@
 
     <h4 style="margin-top:15px;">■ 時間割の設定 (月〜土)</h4>
     <form id="timetable-form">
-      <div id="timetable-inputs" style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px;"></div>
+      <div id="timetable-inputs" class="timetable-grid"></div>
       <button type="button" onclick="saveTimetable()" style="margin-top: 10px;">時間割を全体共有に保存（要パスワード）</button>
     </form>
 
     <hr style="margin: 20px 0;">
 
     <h4>■ 長期休業期間（夏休み・冬休み・春休みなど）の指定</h4>
-    <div style="display: flex; gap: 10px; align-items: flex-end;">
-      <div style="flex: 1;">
+    <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 120px;">
         <label>開始日</label>
         <input type="date" id="vacation-start">
       </div>
-      <div style="flex: 1;">
+      <div style="flex: 1; min-width: 120px;">
         <label>終了日</label>
         <input type="date" id="vacation-end">
       </div>
-      <div style="flex: 1;">
+      <div style="flex: 1; min-width: 120px;">
         <label>休みの名称</label>
         <input type="text" id="vacation-name" placeholder="例: 夏休み">
       </div>
@@ -172,19 +201,23 @@
     <div class="vacation-list" id="vacation-list-display"></div>
   </details>
 
-  <!-- カレンダー本体 -->
+  <!-- カレンダー本体 (横スクロール対応) -->
   <div class="panel">
     <div class="calendar-header">
       <button type="button" onclick="changeMonth(-1)">前月</button>
-      <h2 id="month-display"></h2>
+      <h2 id="month-display" style="margin:0; font-size:1.2em;"></h2>
       <button type="button" onclick="changeMonth(1)">翌月</button>
     </div>
-    <div class="calendar-grid" id="calendar-grid"></div>
+    <div class="calendar-scroll-wrapper">
+      <div class="calendar-grid" id="calendar-grid"></div>
+    </div>
   </div>
 
   <!-- お知らせ・予定送信機能 -->
   <div class="panel">
-    <h3>予定・お知らせの登録</h3>
+    <h3 id="event-form-title">予定の登録・編集</h3>
+    <input type="hidden" id="event-edit-index" value="-1">
+    <input type="hidden" id="event-edit-scope" value="">
     <div class="form-group">
       <label>公開範囲</label>
       <select id="event-scope">
@@ -204,23 +237,29 @@
       <label>内容</label>
       <input type="text" id="event-desc" placeholder="例: 提出物締め切り / 部活練習">
     </div>
-    <button type="button" onclick="sendNotice()">予定を追加</button>
+    <button type="button" id="event-submit-btn" onclick="sendNotice()">予定を追加</button>
+    <button type="button" id="event-cancel-btn" onclick="cancelEventEdit()" style="display:none; background:#888;">キャンセル</button>
   </div>
 
   <!-- HR委員からのお知らせ -->
   <div class="panel">
     <h3>HR委員からのお知らせ</h3>
-    <div class="console-box" id="hr-console"></div>
-    <div style="margin-top: 15px;">
-      <input type="password" id="hr-pass" placeholder="パスワードを入力" style="width: 200px; padding: 8px;">
-      <textarea id="hr-text" placeholder="お知らせ内容を入力" style="margin-top: 8px; height: 60px;"></textarea>
-      <button type="button" onclick="sendHRNotice()">HRお知らせを送信</button>
+    <div class="form-group">
+      <input type="password" id="hr-pass" placeholder="HRパスワードを入力 (編集・削除時も必要)" style="margin-bottom: 8px;">
+      <textarea id="hr-text" placeholder="お知らせ内容を入力" style="height: 60px;"></textarea>
+      <input type="hidden" id="hr-edit-index" value="-1">
+      <div style="margin-top: 8px;">
+        <button type="button" id="hr-submit-btn" onclick="sendHRNotice()">お知らせを送信</button>
+        <button type="button" id="hr-cancel-btn" onclick="cancelHREdit()" style="display:none; background:#888;">キャンセル</button>
+      </div>
     </div>
+    <div id="hr-list-display" class="card-list"></div>
   </div>
 
   <!-- 課題掲示板 -->
   <div class="panel">
-    <h3>課題掲示板（写真添付可・全員共有）</h3>
+    <h3 id="task-form-title">課題掲示板（写真添付可・全員共有）</h3>
+    <input type="hidden" id="task-edit-index" value="-1">
     <div class="form-group">
       <label>科目・タイトル</label>
       <input type="text" id="task-title" placeholder="例: 数学II 週末課題">
@@ -232,11 +271,13 @@
     <div class="form-group">
       <label>写真・画像の添付（任意）</label>
       <input type="file" id="task-image" accept="image/*">
+      <div id="task-image-preview" style="margin-top: 5px; font-size: 0.8em; color: #666;"></div>
     </div>
-    <button type="button" onclick="postTask()">課題を投稿する</button>
+    <button type="button" id="task-submit-btn" onclick="postTask()">課題を投稿する</button>
+    <button type="button" id="task-cancel-btn" onclick="cancelTaskEdit()" style="display:none; background:#888;">キャンセル</button>
 
     <hr style="margin: 20px 0;">
-    <div id="task-board-list" style="display: flex; flex-direction: column; gap: 15px;"></div>
+    <div id="task-board-list" class="card-list"></div>
   </div>
 
 </div>
@@ -257,7 +298,6 @@
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
     
-    // 接続状態のリアルタイム監視
     const connectedRef = db.ref(".info/connected");
     connectedRef.on("value", (snap) => {
       const statusEl = document.getElementById("connection-status");
@@ -369,20 +409,36 @@
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
       cell.innerHTML = `<div class="day-number">${date}</div>`;
 
-      const sharedEvs = sharedEventsData.filter(e => e && e.date === dateStr);
-      sharedEvs.forEach(ev => {
-        const evEl = document.createElement('div');
-        evEl.className = 'event-item event-shared';
-        evEl.textContent = `[共:${ev.time || ''}] ${ev.desc || ''}`;
-        cell.appendChild(evEl);
+      // 全体共有イベント
+      sharedEventsData.forEach((ev, idx) => {
+        if (ev && ev.date === dateStr) {
+          const evEl = document.createElement('div');
+          evEl.className = 'event-item event-shared';
+          evEl.innerHTML = `
+            <span>[共:${escapeHTML(ev.time || '')}] ${escapeHTML(ev.desc || '')}</span>
+            <span>
+              <button class="btn-small btn-edit" onclick="editEvent('shared', ${idx})">改</button>
+              <button class="btn-small btn-danger" onclick="deleteEvent('shared', ${idx})">✕</button>
+            </span>
+          `;
+          cell.appendChild(evEl);
+        }
       });
 
-      const personalEvs = personalEventsData.filter(e => e && e.date === dateStr);
-      personalEvs.forEach(ev => {
-        const evEl = document.createElement('div');
-        evEl.className = 'event-item event-personal';
-        evEl.textContent = `[個:${ev.time || ''}] ${ev.desc || ''}`;
-        cell.appendChild(evEl);
+      // 個人イベント
+      personalEventsData.forEach((ev, idx) => {
+        if (ev && ev.date === dateStr) {
+          const evEl = document.createElement('div');
+          evEl.className = 'event-item event-personal';
+          evEl.innerHTML = `
+            <span>[個:${escapeHTML(ev.time || '')}] ${escapeHTML(ev.desc || '')}</span>
+            <span>
+              <button class="btn-small btn-edit" onclick="editEvent('personal', ${idx})">改</button>
+              <button class="btn-small btn-danger" onclick="deleteEvent('personal', ${idx})">✕</button>
+            </span>
+          `;
+          cell.appendChild(evEl);
+        }
       });
 
       grid.appendChild(cell);
@@ -438,6 +494,17 @@
 
     vacationsData.push({ start, end, name });
     pushData('vacations', vacationsData);
+
+    document.getElementById('vacation-start').value = '';
+    document.getElementById('vacation-end').value = '';
+    document.getElementById('vacation-name').value = '';
+  }
+
+  function deleteVacation(idx) {
+    if (confirm('この休業期間を削除しますか？')) {
+      vacationsData.splice(idx, 1);
+      pushData('vacations', vacationsData);
+    }
   }
 
   function renderVacationList() {
@@ -449,18 +516,23 @@
       return;
     }
     let html = '<strong>登録済み休業期間:</strong><ul>';
-    vacationsData.forEach((v) => {
-      if (v) html += `<li>${v.name}: ${v.start} 〜 ${v.end}</li>`;
+    vacationsData.forEach((v, idx) => {
+      if (v) {
+        html += `<li>${escapeHTML(v.name)}: ${v.start} 〜 ${v.end} 
+          <button class="btn-small btn-danger" onclick="deleteVacation(${idx})">削除</button></li>`;
+      }
     });
     html += '</ul>';
     display.innerHTML = html;
   }
 
+  /* --- 予定の編集・削除 --- */
   function sendNotice() {
     const scope = document.getElementById('event-scope').value;
     const date = document.getElementById('event-date').value;
     const time = document.getElementById('event-time').value;
     const desc = document.getElementById('event-desc').value;
+    const editIndex = parseInt(document.getElementById('event-edit-index').value);
 
     if (!date || !desc) {
       alert('日付と内容を入力してください。');
@@ -469,49 +541,167 @@
 
     const newEvent = { date, time, desc };
 
-    if (scope === 'shared') {
-      sharedEventsData.push(newEvent);
+    if (editIndex >= 0) {
+      // 編集モード
+      const oldScope = document.getElementById('event-edit-scope').value;
+      if (oldScope === 'shared') sharedEventsData.splice(editIndex, 1);
+      else personalEventsData.splice(editIndex, 1);
+
+      if (scope === 'shared') sharedEventsData.push(newEvent);
+      else personalEventsData.push(newEvent);
+
       pushData('events', sharedEventsData);
-    } else {
-      personalEventsData.push(newEvent);
       localStorage.setItem('personal_events', JSON.stringify(personalEventsData));
-      renderCalendar();
+      cancelEventEdit();
+    } else {
+      // 新規登録
+      if (scope === 'shared') {
+        sharedEventsData.push(newEvent);
+        pushData('events', sharedEventsData);
+      } else {
+        personalEventsData.push(newEvent);
+        localStorage.setItem('personal_events', JSON.stringify(personalEventsData));
+        renderCalendar();
+      }
     }
 
     document.getElementById('event-time').value = '';
     document.getElementById('event-desc').value = '';
   }
 
+  function editEvent(scope, idx) {
+    const ev = (scope === 'shared') ? sharedEventsData[idx] : personalEventsData[idx];
+    if (!ev) return;
+
+    document.getElementById('event-scope').value = scope;
+    document.getElementById('event-date').value = ev.date;
+    document.getElementById('event-time').value = ev.time || '';
+    document.getElementById('event-desc').value = ev.desc || '';
+    
+    document.getElementById('event-edit-index').value = idx;
+    document.getElementById('event-edit-scope').value = scope;
+    document.getElementById('event-form-title').textContent = '予定の編集';
+    document.getElementById('event-submit-btn').textContent = '変更を保存';
+    document.getElementById('event-cancel-btn').style.display = 'inline-block';
+  }
+
+  function cancelEventEdit() {
+    document.getElementById('event-edit-index').value = -1;
+    document.getElementById('event-edit-scope').value = '';
+    document.getElementById('event-form-title').textContent = '予定の登録・編集';
+    document.getElementById('event-submit-btn').textContent = '予定を追加';
+    document.getElementById('event-cancel-btn').style.display = 'none';
+    document.getElementById('event-time').value = '';
+    document.getElementById('event-desc').value = '';
+  }
+
+  function deleteEvent(scope, idx) {
+    if (confirm('この予定を削除しますか？')) {
+      if (scope === 'shared') {
+        sharedEventsData.splice(idx, 1);
+        pushData('events', sharedEventsData);
+      } else {
+        personalEventsData.splice(idx, 1);
+        localStorage.setItem('personal_events', JSON.stringify(personalEventsData));
+        renderCalendar();
+      }
+    }
+  }
+
+  /* --- HR委員からのお知らせ --- */
   function sendHRNotice() {
     const pass = document.getElementById('hr-pass').value;
     const text = document.getElementById('hr-text').value;
+    const editIndex = parseInt(document.getElementById('hr-edit-index').value);
 
     if (pass !== '8192') {
       alert('パスワードが正しくありません。');
       return;
     }
-    if (!text) return;
+    if (!text) {
+      alert('お知らせ内容を入力してください。');
+      return;
+    }
 
     const timestamp = new Date().toLocaleString();
-    const entry = `[${timestamp}] > ${text}`;
 
-    hrData.push(entry);
+    if (editIndex >= 0) {
+      hrData[editIndex] = { text, date: `${timestamp} (編集済)` };
+      cancelHREdit();
+    } else {
+      hrData.unshift({ text, date: timestamp });
+    }
+
     pushData('hr_notices', hrData);
     document.getElementById('hr-text').value = '';
   }
 
-  function renderHRConsole() {
-    const consoleBox = document.getElementById('hr-console');
-    if (!consoleBox) return;
-    consoleBox.innerHTML = hrData.map(item => `<div class="console-entry">${item}</div>`).join('');
-    consoleBox.scrollTop = consoleBox.scrollHeight;
+  function editHRNotice(idx) {
+    const item = hrData[idx];
+    if (!item) return;
+
+    document.getElementById('hr-text').value = typeof item === 'object' ? item.text : item;
+    document.getElementById('hr-edit-index').value = idx;
+    document.getElementById('hr-submit-btn').textContent = '変更を保存';
+    document.getElementById('hr-cancel-btn').style.display = 'inline-block';
   }
 
+  function cancelHREdit() {
+    document.getElementById('hr-edit-index').value = -1;
+    document.getElementById('hr-submit-btn').textContent = 'お知らせを送信';
+    document.getElementById('hr-cancel-btn').style.display = 'none';
+    document.getElementById('hr-text').value = '';
+  }
+
+  function deleteHRNotice(idx) {
+    const pass = document.getElementById('hr-pass').value;
+    if (pass !== '8192') {
+      alert('削除にはHRパスワード（8192）を「HRパスワードを入力」欄に入力してください。');
+      return;
+    }
+    if (confirm('このお知らせを削除しますか？')) {
+      hrData.splice(idx, 1);
+      pushData('hr_notices', hrData);
+    }
+  }
+
+  function renderHRNotices() {
+    const listDisplay = document.getElementById('hr-list-display');
+    if (!listDisplay) return;
+
+    if (hrData.length === 0) {
+      listDisplay.innerHTML = '<p style="color: #777;">現在お知らせはありません。</p>';
+      return;
+    }
+
+    listDisplay.innerHTML = hrData.map((item, idx) => {
+      if (!item) return '';
+      const text = typeof item === 'object' ? item.text : item;
+      const date = typeof item === 'object' ? item.date : '';
+
+      return `
+        <div class="card-item hr-notice">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+            <strong style="color: #007bff;">📢 HR委員より</strong>
+            <div>
+              <span style="font-size: 0.75em; color: #888; margin-right: 8px;">${date}</span>
+              <button class="btn-small btn-edit" onclick="editHRNotice(${idx})">編集</button>
+              <button class="btn-small btn-danger" onclick="deleteHRNotice(${idx})">削除</button>
+            </div>
+          </div>
+          <p style="margin: 5px 0; font-size: 0.95em; white-space: pre-wrap;">${escapeHTML(text)}</p>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /* --- 課題掲示板 --- */
   function postTask() {
     const title = document.getElementById('task-title').value;
     const detail = document.getElementById('task-detail').value;
     const fileInput = document.getElementById('task-image');
     const file = fileInput ? fileInput.files[0] : null;
+    const editIndex = parseInt(document.getElementById('task-edit-index').value);
 
     if (!title) {
       alert('科目・タイトルを入力してください。');
@@ -523,22 +713,69 @@
     if (file) {
       const reader = new FileReader();
       reader.onload = function(e) {
-        saveTaskEntry({ title, detail, image: e.target.result, date: timestamp });
+        saveTaskEntry({ title, detail, image: e.target.result, date: timestamp }, editIndex);
       };
       reader.readAsDataURL(file);
     } else {
-      saveTaskEntry({ title, detail, image: null, date: timestamp });
+      let existingImage = null;
+      if (editIndex >= 0 && taskBoardData[editIndex]) {
+        existingImage = taskBoardData[editIndex].image;
+      }
+      saveTaskEntry({ title, detail, image: existingImage, date: timestamp }, editIndex);
     }
   }
 
-  function saveTaskEntry(newTask) {
-    taskBoardData.unshift(newTask);
+  function saveTaskEntry(newTask, editIndex) {
+    if (editIndex >= 0) {
+      taskBoardData[editIndex] = newTask;
+      cancelTaskEdit();
+    } else {
+      taskBoardData.unshift(newTask);
+    }
+
     pushData('task_board', taskBoardData);
 
     document.getElementById('task-title').value = '';
     document.getElementById('task-detail').value = '';
     const fileInput = document.getElementById('task-image');
     if (fileInput) fileInput.value = '';
+  }
+
+  function editTask(idx) {
+    const item = taskBoardData[idx];
+    if (!item) return;
+
+    document.getElementById('task-title').value = item.title || '';
+    document.getElementById('task-detail').value = item.detail || '';
+    document.getElementById('task-edit-index').value = idx;
+
+    const preview = document.getElementById('task-image-preview');
+    if (item.image) {
+      preview.textContent = '※既に画像が添付されています（選択し直さない場合はそのまま保持されます）';
+    } else {
+      preview.textContent = '';
+    }
+
+    document.getElementById('task-form-title').textContent = '課題の編集';
+    document.getElementById('task-submit-btn').textContent = '変更を保存';
+    document.getElementById('task-cancel-btn').style.display = 'inline-block';
+  }
+
+  function cancelTaskEdit() {
+    document.getElementById('task-edit-index').value = -1;
+    document.getElementById('task-form-title').textContent = '課題掲示板（写真添付可・全員共有）';
+    document.getElementById('task-submit-btn').textContent = '課題を投稿する';
+    document.getElementById('task-cancel-btn').style.display = 'none';
+    document.getElementById('task-title').value = '';
+    document.getElementById('task-detail').value = '';
+    document.getElementById('task-image-preview').textContent = '';
+  }
+
+  function deleteTask(idx) {
+    if (confirm('この課題を削除しますか？')) {
+      taskBoardData.splice(idx, 1);
+      pushData('task_board', taskBoardData);
+    }
   }
 
   function renderTaskBoard() {
@@ -550,13 +787,17 @@
       return;
     }
 
-    listContainer.innerHTML = taskBoardData.map((item) => {
+    listContainer.innerHTML = taskBoardData.map((item, idx) => {
       if (!item) return '';
       return `
-        <div style="border: 1px solid #ddd; border-left: 5px solid #ff9800; padding: 12px; border-radius: 4px; background: #fafafa;">
+        <div class="card-item task">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
             <strong style="font-size: 1.1em; color: #333;">${escapeHTML(item.title || '')}</strong>
-            <span style="font-size: 0.75em; color: #888;">${item.date || ''}</span>
+            <div>
+              <span style="font-size: 0.75em; color: #888; margin-right: 8px;">${item.date || ''}</span>
+              <button class="btn-small btn-edit" onclick="editTask(${idx})">編集</button>
+              <button class="btn-small btn-danger" onclick="deleteTask(${idx})">削除</button>
+            </div>
           </div>
           ${item.detail ? `<p style="margin: 5px 0; font-size: 0.9em; white-space: pre-wrap;">${escapeHTML(item.detail)}</p>` : ''}
           ${item.image ? `<div style="margin-top: 10px;"><img src="${item.image}" style="max-width: 100%; max-height: 300px; border-radius: 4px; border: 1px solid #ccc;"></div>` : ''}
@@ -571,7 +812,6 @@
     );
   }
 
-  // Firebaseへの安全なデータ送信
   function pushData(key, value) {
     if (db) {
       db.ref(key).set(value)
@@ -592,7 +832,6 @@
     return Array.isArray(val) ? val : Object.values(val);
   }
 
-  // リアルタイム同期の初期化
   function initRealtimeSync() {
     if (db) {
       db.ref('timetable').on('value', snapshot => {
@@ -609,7 +848,7 @@
       });
       db.ref('hr_notices').on('value', snapshot => {
         hrData = safeArray(snapshot.val());
-        renderHRConsole();
+        renderHRNotices();
       });
       db.ref('task_board').on('value', snapshot => {
         taskBoardData = safeArray(snapshot.val());
