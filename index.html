@@ -62,8 +62,9 @@
       font-size: 0.75em;
       background: #fdf6e3;
       padding: 4px;
-      min-height: 80px;
+      min-height: 100px;
       border: 1px dashed #d3d3d3;
+      line-height: 1.3;
     }
     .day-cell {
       border: 1px solid #ddd;
@@ -76,19 +77,39 @@
     /* 予定のスタイルとタグ色設定 */
     .event-item {
       font-size: 0.75em;
-      padding: 2px 4px;
-      margin-bottom: 2px;
+      padding: 4px;
+      margin-bottom: 4px;
       border-radius: 3px;
+      word-break: break-all;
+    }
+    .event-header-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      word-break: break-all;
+    }
+    .event-time {
+      font-weight: bold;
+    }
+    .event-desc {
+      margin-top: 2px;
     }
     .tag-default { background: #e3f2fd; color: #0d47a1; border-left: 3px solid #1e88e5; }
     .tag-danger  { background: #ffebee; color: #b71c1c; border-left: 3px solid #e53935; }
     .tag-success { background: #e8f5e9; color: #1b5e20; border-left: 3px solid #4caf50; }
     .tag-warning { background: #fff3e0; color: #e65100; border-left: 3px solid #fb8c00; }
     .tag-purple  { background: #f3e5f5; color: #4a148c; border-left: 3px solid #8e24aa; }
+
+    .vacation-banner {
+      font-size: 0.75em;
+      background: #e1f5fe;
+      color: #0288d1;
+      border: 1px solid #81d4fa;
+      padding: 2px 4px;
+      margin-bottom: 4px;
+      border-radius: 3px;
+      text-align: center;
+      font-weight: bold;
+    }
 
     .form-group { margin-bottom: 10px; }
     .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
@@ -278,7 +299,7 @@
   <div class="panel">
     <h3>HR委員からのお知らせ</h3>
     <div class="form-group">
-      <input type="password" id="hr-pass" placeholder="HRパスワードを入力 (編集・削除時も必要)" style="margin-bottom: 8px;">
+      <input type="password" id="hr-pass" placeholder="HRパスワードを入力" style="margin-bottom: 8px;">
       <textarea id="hr-text" placeholder="お知らせ内容を入力" style="height: 60px;"></textarea>
       <input type="hidden" id="hr-edit-index" value="-1">
       <div style="margin-top: 8px;">
@@ -366,6 +387,57 @@
     initRealtimeSync();
   };
 
+  function initRealtimeSync() {
+    if (!db) return;
+
+    db.ref('timetable').on('value', (snap) => {
+      timeTableData = snap.val() || {};
+      updateTimetableInputs();
+      renderCalendar();
+    });
+
+    db.ref('events').on('value', (snap) => {
+      sharedEventsData = snap.val() || [];
+      renderCalendar();
+    });
+
+    db.ref('vacations').on('value', (snap) => {
+      vacationsData = snap.val() || [];
+      renderCalendar();
+    });
+
+    db.ref('exams').on('value', (snap) => {
+      examsData = snap.val() || [];
+      renderCalendar();
+    });
+
+    db.ref('hr_notices').on('value', (snap) => {
+      hrData = snap.val() || [];
+      renderHRNotices();
+    });
+
+    db.ref('task_board').on('value', (snap) => {
+      taskBoardData = snap.val() || [];
+      renderTaskBoard();
+    });
+  }
+
+  function pushData(path, data) {
+    if (db) {
+      db.ref(path).set(data);
+    }
+  }
+
+  function escapeHTML(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   function generateTimetableInputs() {
     const container = document.getElementById('timetable-inputs');
     if (!container) return;
@@ -379,6 +451,17 @@
       html += `</div>`;
     });
     container.innerHTML = html;
+  }
+
+  function updateTimetableInputs() {
+    for (let d = 0; d < 6; d++) {
+      for (let h = 1; h <= 6; h++) {
+        const input = document.getElementById(`tt-${d}-${h}`);
+        if (input && timeTableData[d]) {
+          input.value = timeTableData[d][h] || '';
+        }
+      }
+    }
   }
 
   function renderCalendar() {
@@ -399,23 +482,19 @@
       grid.appendChild(el);
     });
 
-    const isVacationMonth = checkMonthInVacation(year, month);
-
+    // 曜日ごとの通常時間割ヘッダー（1時間ごとに改行）
     dayNames.forEach((_, index) => {
       const el = document.createElement('div');
       el.className = 'timetable-header';
 
-      if (isVacationMonth) {
-        el.innerHTML = '<strong>時間割</strong><br><span style="color:#d9534f;">長期休業期間</span>';
-      } else if (index > 0 && index <= 6) {
+      if (index > 0 && index <= 6) {
         let html = `<strong>時間割</strong><br>`;
         let hasSubject = false;
 
         for (let h = 1; h <= 6; h++) {
           const val = (timeTableData[index - 1] && timeTableData[index - 1][h]) || '';
           if (val.trim() !== '') {
-            html += `${h}:${val} `;
-            if(h % 2 === 0) html += '<br>';
+            html += `${h}限: ${escapeHTML(val)}<br>`;
             hasSubject = true;
           }
         }
@@ -443,6 +522,15 @@
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
       cell.innerHTML = `<div class="day-number">${date}</div>`;
 
+      // 長期休みの判定 (↔付きでカレンダーに表示)
+      const vacationName = checkVacationForDate(dateStr);
+      if (vacationName) {
+        const vacEl = document.createElement('div');
+        vacEl.className = 'vacation-banner';
+        vacEl.textContent = `↔ ${vacationName}`;
+        cell.appendChild(vacEl);
+      }
+
       // 定期試験の変則時間割判定
       const examInfo = checkExamForDate(dateStr);
       if (examInfo) {
@@ -453,7 +541,7 @@
         if (examInfo.dailySchedule) {
           for (let h = 1; h <= 3; h++) {
             if (examInfo.dailySchedule[h]) {
-              examHtml += `${h}:${escapeHTML(examInfo.dailySchedule[h])}<br>`;
+              examHtml += `${h}限: ${escapeHTML(examInfo.dailySchedule[h])}<br>`;
               hasExamTt = true;
             }
           }
@@ -470,11 +558,14 @@
           const tagClass = getTagClass(ev.tag);
           evEl.className = `event-item ${tagClass}`;
           evEl.innerHTML = `
-            <span>[共:${escapeHTML(ev.time || '')}] ${escapeHTML(ev.desc || '')}</span>
-            <span>
-              <button class="btn-small btn-edit" onclick="editEvent('shared', ${idx})">改</button>
-              <button class="btn-small btn-danger" onclick="deleteEvent('shared', ${idx})">✕</button>
-            </span>
+            <div class="event-header-row">
+              <span class="event-time">[共:${escapeHTML(ev.time || '')}]</span>
+              <span>
+                <button class="btn-small btn-edit" onclick="editEvent('shared', ${idx})">改</button>
+                <button class="btn-small btn-danger" onclick="deleteEvent('shared', ${idx})">✕</button>
+              </span>
+            </div>
+            <div class="event-desc">${escapeHTML(ev.desc || '')}</div>
           `;
           cell.appendChild(evEl);
         }
@@ -487,11 +578,14 @@
           const tagClass = getTagClass(ev.tag);
           evEl.className = `event-item ${tagClass}`;
           evEl.innerHTML = `
-            <span>[個:${escapeHTML(ev.time || '')}] ${escapeHTML(ev.desc || '')}</span>
-            <span>
-              <button class="btn-small btn-edit" onclick="editEvent('personal', ${idx})">改</button>
-              <button class="btn-small btn-danger" onclick="deleteEvent('personal', ${idx})">✕</button>
-            </span>
+            <div class="event-header-row">
+              <span class="event-time">[個:${escapeHTML(ev.time || '')}]</span>
+              <span>
+                <button class="btn-small btn-edit" onclick="editEvent('personal', ${idx})">改</button>
+                <button class="btn-small btn-danger" onclick="deleteEvent('personal', ${idx})">✕</button>
+              </span>
+            </div>
+            <div class="event-desc">${escapeHTML(ev.desc || '')}</div>
           `;
           cell.appendChild(evEl);
         }
@@ -514,16 +608,17 @@
     }
   }
 
-  function checkMonthInVacation(year, month) {
-    const monthStart = new Date(year, month, 1);
-    const monthEnd = new Date(year, month + 1, 0);
-
-    return vacationsData.some(v => {
-      if (!v || !v.start || !v.end) return false;
+  function checkVacationForDate(dateStr) {
+    const target = new Date(dateStr);
+    for (let v of vacationsData) {
+      if (!v || !v.start || !v.end) continue;
       const vStart = new Date(v.start);
       const vEnd = new Date(v.end);
-      return (monthStart <= vEnd && monthEnd >= vStart);
-    });
+      if (target >= vStart && target <= vEnd) {
+        return v.name;
+      }
+    }
+    return null;
   }
 
   function checkExamForDate(dateStr) {
@@ -612,7 +707,7 @@
   }
 
   function addExamSchedule() {
-    const pass = prompt('定期試験を設定するにはHR委員のパスワード（8192）を入力してください:');
+    const pass = prompt('定期試験を設定するにはHR委員のパスワードを入力してください:');
     if (pass !== '8192') {
       alert('パスワードが正しくありません。');
       return;
@@ -654,7 +749,7 @@
   }
 
   function deleteExamSchedule(idx) {
-    const pass = prompt('定期試験設定を削除するにはHR委員のパスワード（8192）を入力してください:');
+    const pass = prompt('定期試験設定を削除するにはHR委員のパスワードを入力してください:');
     if (pass !== '8192') {
       alert('パスワードが正しくありません。');
       return;
@@ -859,7 +954,7 @@
   function deleteHRNotice(idx) {
     const pass = document.getElementById('hr-pass').value;
     if (pass !== '8192') {
-      alert('削除にはHRパスワード（8192）を「HRパスワードを入力」欄に入力してください。');
+      alert('削除にはHRパスワードを「HRパスワードを入力」欄に入力してください。');
       return;
     }
     if (confirm('このお知らせを削除しますか？')) {
@@ -972,6 +1067,8 @@
     document.getElementById('task-title').value = '';
     document.getElementById('task-detail').value = '';
     document.getElementById('task-image-preview').textContent = '';
+    const fileInput = document.getElementById('task-image');
+    if (fileInput) fileInput.value = '';
   }
 
   function deleteTask(idx) {
@@ -982,88 +1079,32 @@
   }
 
   function renderTaskBoard() {
-    const listContainer = document.getElementById('task-board-list');
-    if (!listContainer) return;
+    const listDisplay = document.getElementById('task-board-list');
+    if (!listDisplay) return;
 
     if (taskBoardData.length === 0) {
-      listContainer.innerHTML = '<p style="color: #777;">現在投稿されている課題はありません。</p>';
+      listDisplay.innerHTML = '<p style="color: #777;">現在投稿されている課題はありません。</p>';
       return;
     }
 
-    listContainer.innerHTML = taskBoardData.map((item, idx) => {
+    listDisplay.innerHTML = taskBoardData.map((item, idx) => {
       if (!item) return '';
       return `
         <div class="card-item task">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-            <strong style="font-size: 1.1em; color: #333;">${escapeHTML(item.title || '')}</strong>
+            <strong style="color: #d9534f; font-size: 1.05em;">📚 ${escapeHTML(item.title)}</strong>
             <div>
               <span style="font-size: 0.75em; color: #888; margin-right: 8px;">${item.date || ''}</span>
               <button class="btn-small btn-edit" onclick="editTask(${idx})">編集</button>
               <button class="btn-small btn-danger" onclick="deleteTask(${idx})">削除</button>
             </div>
           </div>
-          ${item.detail ? `<p style="margin: 5px 0; font-size: 0.9em; white-space: pre-wrap;">${escapeHTML(item.detail)}</p>` : ''}
-          ${item.image ? `<div style="margin-top: 10px;"><img src="${item.image}" style="max-width: 100%; max-height: 300px; border-radius: 4px; border: 1px solid #ccc;"></div>` : ''}
+          <p style="margin: 5px 0; font-size: 0.9em; white-space: pre-wrap;">${escapeHTML(item.detail)}</p>
+          ${item.image ? `<div style="margin-top: 8px;"><img src="${item.image}" style="max-width: 100%; border-radius: 4px; border: 1px solid #ddd;"></div>` : ''}
         </div>
       `;
     }).join('');
   }
-
-  function escapeHTML(str) {
-    return (str || '').replace(/[&<>'"]/g, 
-      tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
-    );
-  }
-
-  function pushData(key, value) {
-    if (db) {
-      db.ref(key).set(value)
-        .then(() => {
-          console.log(`${key} の送信成功`);
-        })
-        .catch(err => {
-          console.error(`${key} の送信失敗:`, err);
-          alert(`Firebaseへの送信エラー: ${err.message}`);
-        });
-    } else {
-      alert("Firebaseに接続されていません。");
-    }
-  }
-
-  function safeArray(val) {
-    if (!val) return [];
-    return Array.isArray(val) ? val : Object.values(val);
-  }
-
-  function initRealtimeSync() {
-    if (db) {
-      db.ref('timetable').on('value', snapshot => {
-        timeTableData = snapshot.val() || {};
-        renderCalendar();
-      });
-      db.ref('events').on('value', snapshot => {
-        sharedEventsData = safeArray(snapshot.val());
-        renderCalendar();
-      });
-      db.ref('vacations').on('value', snapshot => {
-        vacationsData = safeArray(snapshot.val());
-        renderCalendar();
-      });
-      db.ref('exams').on('value', snapshot => {
-        examsData = safeArray(snapshot.val());
-        renderCalendar();
-      });
-      db.ref('hr_notices').on('value', snapshot => {
-        hrData = safeArray(snapshot.val());
-        renderHRNotices();
-      });
-      db.ref('task_board').on('value', snapshot => {
-        taskBoardData = safeArray(snapshot.val());
-        renderTaskBoard();
-      });
-    }
-  }
 </script>
-
 </body>
 </html>
