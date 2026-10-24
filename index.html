@@ -1,1110 +1,1270 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>4Bカレンダー</title>
-  <style>
-    :root {
-      --primary-color: #4a90e2;
-      --bg-color: #f4f7f6;
-      --text-color: #333;
-    }
-    body {
-      font-family: 'Helvetica Neue', Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      margin: 0;
-      padding: 10px;
-    }
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-    }
-    h1, h2 { text-align: center; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4Bカレンダー</title>
+<style>
+:root {
+--primary-color: #4a90e2;
+--bg-color: #f4f7f6;
+--text-color: #333;
+}
+#login-screen { box-sizing: border-box; }
+button:disabled { opacity: .6; cursor: wait; }
+body {
+font-family: 'Helvetica Neue', Arial, sans-serif;
+background-color: var(--bg-color);
+color: var(--text-color);
+margin: 0;
+padding: 10px;
+}
+.container {
+max-width: 1000px;
+margin: 0 auto;
+}
+h1, h2 { text-align: center; }
 
-    .panel {
-      background: white;
-      padding: 15px;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
-    }
+.panel {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
 
-    .calendar-scroll-wrapper {
-      width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
+.calendar-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
-    .calendar-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-    .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 5px;
-      background: white;
-      padding: 5px;
-      border-radius: 8px;
-      min-width: 600px;
-    }
-    .day-header {
-      font-weight: bold;
-      text-align: center;
-      padding: 5px;
-      background: #eef2f5;
-    }
-    .timetable-header {
-      font-size: 0.75em;
-      background: #fdf6e3;
-      padding: 4px;
-      min-height: 100px;
-      border: 1px dashed #d3d3d3;
-      line-height: 1.3;
-    }
-    .day-cell {
-      border: 1px solid #ddd;
-      min-height: 90px;
-      padding: 5px;
-      background: #fff;
-    }
-    .day-number { font-weight: bold; margin-bottom: 5px; }
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  background: white;
+  padding: 5px;
+  border-radius: 8px;
+  min-width: 600px;
+}
+.day-header {
+  font-weight: bold;
+  text-align: center;
+  padding: 5px;
+  background: #eef2f5;
+}
+.timetable-header {
+  font-size: 0.75em;
+  background: #fdf6e3;
+  padding: 4px;
+  min-height: 100px;
+  border: 1px dashed #d3d3d3;
+  line-height: 1.3;
+}
+.day-cell {
+  border: 1px solid #ddd;
+  min-height: 90px;
+  padding: 5px;
+  background: #fff;
+}
+.day-number { font-weight: bold; margin-bottom: 5px; }
 
-    /* 予定のスタイルとタグ色設定 */
-    .event-item {
-      font-size: 0.75em;
-      padding: 4px;
-      margin-bottom: 4px;
-      border-radius: 3px;
-      word-break: break-all;
-    }
-    .event-header-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .event-time {
-      font-weight: bold;
-    }
-    .event-desc {
-      margin-top: 2px;
-    }
-    .tag-default { background: #e3f2fd; color: #0d47a1; border-left: 3px solid #1e88e5; }
-    .tag-danger  { background: #ffebee; color: #b71c1c; border-left: 3px solid #e53935; }
-    .tag-success { background: #e8f5e9; color: #1b5e20; border-left: 3px solid #4caf50; }
-    .tag-warning { background: #fff3e0; color: #e65100; border-left: 3px solid #fb8c00; }
-    .tag-purple  { background: #f3e5f5; color: #4a148c; border-left: 3px solid #8e24aa; }
+/* 予定のスタイルとタグ色設定 */
+.event-item {
+  font-size: 0.75em;
+  padding: 4px;
+  margin-bottom: 4px;
+  border-radius: 3px;
+  word-break: break-all;
+}
+.event-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.event-time {
+  font-weight: bold;
+}
+.event-desc {
+  margin-top: 2px;
+}
+.tag-default { background: #e3f2fd; color: #0d47a1; border-left: 3px solid #1e88e5; }
+.tag-danger  { background: #ffebee; color: #b71c1c; border-left: 3px solid #e53935; }
+.tag-success { background: #e8f5e9; color: #1b5e20; border-left: 3px solid #4caf50; }
+.tag-warning { background: #fff3e0; color: #e65100; border-left: 3px solid #fb8c00; }
+.tag-purple  { background: #f3e5f5; color: #4a148c; border-left: 3px solid #8e24aa; }
 
-    .vacation-banner {
-      font-size: 0.75em;
-      background: #e1f5fe;
-      color: #0288d1;
-      border: 1px solid #81d4fa;
-      padding: 2px 4px;
-      margin-bottom: 4px;
-      border-radius: 3px;
-      text-align: center;
-      font-weight: bold;
-    }
+.vacation-banner {
+  font-size: 0.75em;
+  background: #e1f5fe;
+  color: #0288d1;
+  border: 1px solid #81d4fa;
+  padding: 2px 4px;
+  margin-bottom: 4px;
+  border-radius: 3px;
+  text-align: center;
+  font-weight: bold;
+}
 
-    .form-group { margin-bottom: 10px; }
-    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-    .form-group input, .form-group select, .form-group textarea {
-      width: 100%;
-      padding: 8px;
-      box-sizing: border-box;
-    }
-    button {
-      background: var(--primary-color);
-      color: white;
-      border: none;
-      padding: 8px 12px;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .btn-small {
-      padding: 2px 6px;
-      font-size: 0.75em;
-      margin-left: 3px;
-      background: #6c757d;
-      flex-shrink: 0;
-    }
-    .btn-danger { background: #dc3545; }
-    .btn-edit { background: #ffc107; color: #000; }
+.form-group { margin-bottom: 10px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+  padding: 8px;
+  box-sizing: border-box;
+}
+button {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-small {
+  padding: 2px 6px;
+  font-size: 0.75em;
+  margin-left: 3px;
+  background: #6c757d;
+  flex-shrink: 0;
+}
+.btn-danger { background: #dc3545; }
+.btn-edit { background: #ffc107; color: #000; }
 
-    .card-list {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      margin-top: 15px;
-    }
-    .card-item {
-      border: 1px solid #ddd;
-      padding: 12px;
-      border-radius: 4px;
-      background: #fafafa;
-    }
-    .card-item.hr-notice { border-left: 5px solid #007bff; }
-    .card-item.task { border-left: 5px solid #ff9800; }
+.card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+.card-item {
+  border: 1px solid #ddd;
+  padding: 12px;
+  border-radius: 4px;
+  background: #fafafa;
+}
+.card-item.hr-notice { border-left: 5px solid #007bff; }
+.card-item.task { border-left: 5px solid #ff9800; }
 
-    .vacation-list {
-      margin-top: 10px;
-      font-size: 0.85em;
-    }
-    .status-banner {
-      padding: 10px;
-      background: #fff3cd;
-      color: #856404;
-      border-radius: 4px;
-      margin-bottom: 15px;
-      text-align: center;
-      font-size: 0.9em;
-    }
+.vacation-list {
+  margin-top: 10px;
+  font-size: 0.85em;
+}
+.status-banner {
+  padding: 10px;
+  background: #fff3cd;
+  color: #856404;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  text-align: center;
+  font-size: 0.9em;
+}
 
-    .timetable-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 10px;
-    }
+.timetable-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
 
-    .exam-date-row {
-      background: #fdf8e4;
-      padding: 8px;
-      border-radius: 4px;
-      margin-bottom: 8px;
-      border: 1px solid #ffeba8;
-    }
-  </style>
+.exam-date-row {
+  background: #fdf8e4;
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  border: 1px solid #ffeba8;
+}
 
-  <!-- Firebase SDK (compat版) -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+</style>
+
+<!-- Firebase SDK (compat版) -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 </head>
 <body>
-
-<div class="container">
+<div id="login-screen" class="panel" style="max-width:440px;margin:8vh auto;text-align:center;">
   <h1>4Bカレンダー</h1>
-  
-  <div id="connection-status" class="status-banner">接続状態を確認中...</div>
+  <p>学校の Google アカウントでログインしてください。</p>
+  <button type="button" id="google-signin-btn" onclick="signInWithGoogle()">Google アカウントでログイン</button>
+  <p id="login-message" role="status" style="color:#b71c1c;white-space:pre-wrap;"></p>
+</div>
 
-  <!-- 時間割・試験・休業期間設定 -->
-  <details class="panel">
-    <summary><strong>時間割・定期試験・長期休業の設定</strong></summary>
+<div class="container" id="app-container" style="display:none;">
+<h1>4Bカレンダー</h1>
+<div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+  <span id="signed-in-email" style="font-size:.85em;color:#555;"></span>
+  <button type="button" onclick="signOutUser()" style="background:#6c757d;">ログアウト</button>
+</div>
 
-    <h4 style="margin-top:15px;">■ 通常時間割の設定 (月〜土)</h4>
-    <form id="timetable-form">
-      <div id="timetable-inputs" class="timetable-grid"></div>
-      <button type="button" onclick="saveTimetable()" style="margin-top: 10px;">通常時間割を保存（要パスワード）</button>
-    </form>
+<div id="connection-status" class="status-banner">接続状態を確認中...</div>
 
-    <hr style="margin: 20px 0;">
+<!-- 時間割・試験・休業期間設定 -->
+<details class="panel">
+<summary><strong>時間割・定期試験・長期休業の設定</strong></summary>
 
-    <h4>■ 定期試験期間と日別時間割（最大3限）の設定</h4>
-    <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px;">
-      <div style="flex: 1; min-width: 120px;">
-        <label>開始日</label>
-        <input type="date" id="exam-start" onchange="generateExamDateInputs()">
-      </div>
-      <div style="flex: 1; min-width: 120px;">
-        <label>終了日</label>
-        <input type="date" id="exam-end" onchange="generateExamDateInputs()">
-      </div>
-      <div style="flex: 1; min-width: 120px;">
-        <label>試験名</label>
-        <input type="text" id="exam-name" placeholder="例: 中間テスト">
-      </div>
-    </div>
+<h4 style="margin-top:15px;">■ 通常時間割の設定 (月〜土)</h4>
+<form id="timetable-form">
+  <div id="timetable-inputs" class="timetable-grid"></div>
+  <button type="button" onclick="saveTimetable()" style="margin-top: 10px;">通常時間割を保存（HR委員のみ）</button>
+</form>
 
-    <div id="exam-daily-inputs-container"></div>
+<hr style="margin: 20px 0;">
 
-    <button type="button" id="btn-save-exam" onclick="addExamSchedule()" style="display:none; margin-top:10px;">定期試験日程・時間割を登録（要パスワード）</button>
-    <div class="vacation-list" id="exam-list-display"></div>
-
-    <hr style="margin: 20px 0;">
-
-    <h4>■ 長期休業期間（夏休み・冬休みなど）の指定</h4>
-    <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
-      <div style="flex: 1; min-width: 120px;">
-        <label>開始日</label>
-        <input type="date" id="vacation-start">
-      </div>
-      <div style="flex: 1; min-width: 120px;">
-        <label>終了日</label>
-        <input type="date" id="vacation-end">
-      </div>
-      <div style="flex: 1; min-width: 120px;">
-        <label>休みの名称</label>
-        <input type="text" id="vacation-name" placeholder="例: 夏休み">
-      </div>
-      <button type="button" onclick="addVacation()">休業期間を追加</button>
-    </div>
-    <div class="vacation-list" id="vacation-list-display"></div>
-  </details>
-
-  <!-- カレンダー本体 -->
-  <div class="panel">
-    <div class="calendar-header">
-      <button type="button" onclick="changeMonth(-1)">前月</button>
-      <h2 id="month-display" style="margin:0; font-size:1.2em;"></h2>
-      <button type="button" onclick="changeMonth(1)">翌月</button>
-    </div>
-    <div class="calendar-scroll-wrapper">
-      <div class="calendar-grid" id="calendar-grid"></div>
-    </div>
+<h4>■ 定期試験期間と日別時間割（最大3限）の設定</h4>
+<div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px;">
+  <div style="flex: 1; min-width: 120px;">
+    <label>開始日</label>
+    <input type="date" id="exam-start" onchange="generateExamDateInputs()">
   </div>
-
-  <!-- お知らせ・予定送信機能 -->
-  <div class="panel">
-    <h3 id="event-form-title">予定の登録・編集</h3>
-    <input type="hidden" id="event-edit-index" value="-1">
-    <input type="hidden" id="event-edit-scope" value="">
-    <div class="form-group">
-      <label>公開範囲</label>
-      <select id="event-scope">
-        <option value="shared">全体共有（全員のカレンダーに表示）</option>
-        <option value="personal">個人専用（自分の端末にのみ表示）</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>タグ（色分け）</label>
-      <select id="event-tag">
-        <option value="default">通常（青）</option>
-        <option value="danger">提出物 / テスト（赤）</option>
-        <option value="success">行事 / イベント（緑）</option>
-        <option value="warning">部活 / 習い事（オレンジ）</option>
-        <option value="purple">その他（紫）</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>日付</label>
-      <input type="date" id="event-date">
-    </div>
-    <div class="form-group">
-      <label>時間 または 何時間目か</label>
-      <input type="text" id="event-time" placeholder="例: 10:00 や 3時間目">
-    </div>
-    <div class="form-group">
-      <label>内容</label>
-      <input type="text" id="event-desc" placeholder="例: 提出物締め切り / 部活練習">
-    </div>
-    <button type="button" id="event-submit-btn" onclick="sendNotice()">予定を追加</button>
-    <button type="button" id="event-cancel-btn" onclick="cancelEventEdit()" style="display:none; background:#888;">キャンセル</button>
+  <div style="flex: 1; min-width: 120px;">
+    <label>終了日</label>
+    <input type="date" id="exam-end" onchange="generateExamDateInputs()">
   </div>
-
-  <!-- HR委員からのお知らせ -->
-  <div class="panel">
-    <h3>HR委員からのお知らせ</h3>
-    <div class="form-group">
-      <input type="password" id="hr-pass" placeholder="HRパスワードを入力" style="margin-bottom: 8px;">
-      <textarea id="hr-text" placeholder="お知らせ内容を入力" style="height: 60px;"></textarea>
-      <input type="hidden" id="hr-edit-index" value="-1">
-      <div style="margin-top: 8px;">
-        <button type="button" id="hr-submit-btn" onclick="sendHRNotice()">お知らせを送信</button>
-        <button type="button" id="hr-cancel-btn" onclick="cancelHREdit()" style="display:none; background:#888;">キャンセル</button>
-      </div>
-    </div>
-    <div id="hr-list-display" class="card-list"></div>
+  <div style="flex: 1; min-width: 120px;">
+    <label>試験名</label>
+    <input type="text" id="exam-name" placeholder="例: 中間テスト">
   </div>
+</div>
 
-  <!-- 課題掲示板 -->
-  <div class="panel">
-    <h3 id="task-form-title">課題掲示板（写真添付可・全員共有）</h3>
-    <input type="hidden" id="task-edit-index" value="-1">
-    <div class="form-group">
-      <label>科目・タイトル</label>
-      <input type="text" id="task-title" placeholder="例: 数学II 週末課題">
-    </div>
-    <div class="form-group">
-      <label>詳細・メモ</label>
-      <textarea id="task-detail" style="height: 60px;" placeholder="例: P.45〜48 ノートに解いて提出"></textarea>
-    </div>
-    <div class="form-group">
-      <label>写真・画像の添付（任意）</label>
-      <input type="file" id="task-image" accept="image/*">
-      <div id="task-image-preview" style="margin-top: 5px; font-size: 0.8em; color: #666;"></div>
-    </div>
-    <button type="button" id="task-submit-btn" onclick="postTask()">課題を投稿する</button>
-    <button type="button" id="task-cancel-btn" onclick="cancelTaskEdit()" style="display:none; background:#888;">キャンセル</button>
+<div id="exam-daily-inputs-container"></div>
 
-    <hr style="margin: 20px 0;">
-    <div id="task-board-list" class="card-list"></div>
+<button type="button" id="btn-save-exam" onclick="addExamSchedule()" style="display:none; margin-top:10px;">定期試験日程・時間割を登録（HR委員のみ）</button>
+<div class="vacation-list" id="exam-list-display"></div>
+
+<hr style="margin: 20px 0;">
+
+<h4>■ 長期休業期間（夏休み・冬休みなど）の指定</h4>
+<div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+  <div style="flex: 1; min-width: 120px;">
+    <label>開始日</label>
+    <input type="date" id="vacation-start">
   </div>
+  <div style="flex: 1; min-width: 120px;">
+    <label>終了日</label>
+    <input type="date" id="vacation-end">
+  </div>
+  <div style="flex: 1; min-width: 120px;">
+    <label>休みの名称</label>
+    <input type="text" id="vacation-name" placeholder="例: 夏休み">
+  </div>
+  <button type="button" onclick="addVacation()">休業期間を追加</button>
+</div>
+<div class="vacation-list" id="vacation-list-display"></div>
+
+</details>
+
+<!-- カレンダー本体 -->
+<div class="panel">
+<div class="calendar-header">
+<button type="button" onclick="changeMonth(-1)">前月</button>
+<h2 id="month-display" style="margin:0; font-size:1.2em;"></h2>
+<button type="button" onclick="changeMonth(1)">翌月</button>
+</div>
+<div class="calendar-scroll-wrapper">
+<div class="calendar-grid" id="calendar-grid"></div>
+</div>
+</div>
+
+<!-- お知らせ・予定送信機能 -->
+<div class="panel">
+<h3 id="event-form-title">予定の登録・編集</h3>
+<input type="hidden" id="event-edit-index" value="-1">
+<input type="hidden" id="event-edit-scope" value="">
+<div class="form-group">
+<label>公開範囲</label>
+<select id="event-scope">
+<option value="shared">全体共有（全員のカレンダーに表示）</option>
+<option value="personal">個人専用（自分の端末にのみ表示）</option>
+</select>
+</div>
+<div class="form-group">
+<label>タグ（色分け）</label>
+<select id="event-tag">
+<option value="default">通常（青）</option>
+<option value="danger">提出物 / テスト（赤）</option>
+<option value="success">行事 / イベント（緑）</option>
+<option value="warning">部活 / 習い事（オレンジ）</option>
+<option value="purple">その他（紫）</option>
+</select>
+</div>
+<div class="form-group">
+<label>日付</label>
+<input type="date" id="event-date">
+</div>
+<div class="form-group">
+<label>時間 または 何時間目か</label>
+<input type="text" id="event-time" placeholder="例: 10:00 や 3時間目">
+</div>
+<div class="form-group">
+<label>内容</label>
+<input type="text" id="event-desc" placeholder="例: 提出物締め切り / 部活練習">
+</div>
+<button type="button" id="event-submit-btn" onclick="sendNotice()">予定を追加</button>
+<button type="button" id="event-cancel-btn" onclick="cancelEventEdit()" style="display:none; background:#888;">キャンセル</button>
+</div>
+
+<!-- HR委員からのお知らせ -->
+<div class="panel">
+<h3>HR委員からのお知らせ</h3>
+<div class="form-group">
+
+<textarea id="hr-text" placeholder="お知らせ内容を入力" style="height: 60px;"></textarea>
+<input type="hidden" id="hr-edit-index" value="-1">
+<div style="margin-top: 8px;">
+<button type="button" id="hr-submit-btn" onclick="sendHRNotice()">お知らせを送信</button>
+<button type="button" id="hr-cancel-btn" onclick="cancelHREdit()" style="display:none; background:#888;">キャンセル</button>
+</div>
+</div>
+<div id="hr-list-display" class="card-list"></div>
+</div>
+
+<!-- 課題掲示板 -->
+<div class="panel">
+<h3 id="task-form-title">課題掲示板（写真添付可・全員共有）</h3>
+<input type="hidden" id="task-edit-index" value="-1">
+<div class="form-group">
+<label>科目・タイトル</label>
+<input type="text" id="task-title" placeholder="例: 数学II 週末課題">
+</div>
+<div class="form-group">
+<label>詳細・メモ</label>
+<textarea id="task-detail" style="height: 60px;" placeholder="例: P.45〜48 ノートに解いて提出"></textarea>
+</div>
+<div class="form-group">
+<label>写真・画像の添付（任意）</label>
+<input type="file" id="task-image" accept="image/*">
+<div id="task-image-preview" style="margin-top: 5px; font-size: 0.8em; color: #666;"></div>
+</div>
+<button type="button" id="task-submit-btn" onclick="postTask()">課題を投稿する</button>
+<button type="button" id="task-cancel-btn" onclick="cancelTaskEdit()" style="display:none; background:#888;">キャンセル</button>
+
+<hr style="margin: 20px 0;">
+<div id="task-board-list" class="card-list"></div>
+
+</div>
 
 </div>
 
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyAToSDEpvxlG-7N22fWijeoFySSKTfGeLw",
-    authDomain: "class-submission-calenda-7ad76.firebaseapp.com",
-    databaseURL: "https://class-submission-calenda-7ad76-default-rtdb.us-central1.firebasedatabase.app",
-    projectId: "class-submission-calenda-7ad76",
-    storageBucket: "class-submission-calenda-7ad76.firebasestorage.app",
-    messagingSenderId: "312652354036",
-    appId: "1:312652354036:web:ab349a730f21965caa29a1"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyAToSDEpvxlG-7N22fWijeoFySSKTfGeLw",
+  authDomain: "class-submission-calenda-7ad76.firebaseapp.com",
+  databaseURL: "https://class-submission-calenda-7ad76-default-rtdb.us-central1.firebasedatabase.app",
+  projectId: "class-submission-calenda-7ad76",
+  storageBucket: "class-submission-calenda-7ad76.firebasestorage.app",
+  messagingSenderId: "312652354036",
+  appId: "1:312652354036:web:ab349a730f21965caa29a1"
+};
 
-  let db = null;
+const SCHOOL_DOMAIN = "waseda-h.ed.jp"; // 例: school.ed.jp（@は付けない）
+const HR_UIDS = ["REPLACE_WITH_HR_UID"]; // HR委員のFirebase Authentication UIDに置き換える
+
+let db = null;
+let auth = null;
+let realtimeSyncStarted = false;
+const SYNC_PATHS = ["timetable", "events", "vacations", "exams", "hr_notices", "task_board"];
+
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+  auth = firebase.auth();
+
+  const connectedRef = db.ref(".info/connected");
+  connectedRef.on("value", (snap) => {
+    const statusEl = document.getElementById("connection-status");
+    if (!statusEl) return;
+    if (snap.val() === true) {
+      statusEl.style.background = "#d4edda";
+      statusEl.style.color = "#155724";
+      statusEl.textContent = "🟢 オンライン: リアルタイム同期が有効です";
+    } else {
+      statusEl.style.background = "#f8d7da";
+      statusEl.style.color = "#721c24";
+      statusEl.textContent = "🔴 オフライン: サーバーに接続されていません";
+    }
+  });
+} catch (e) {
+  console.error("Firebase初期化エラー:", e);
+  const statusEl = document.getElementById("connection-status");
+  if (statusEl) statusEl.textContent = "❌ Firebase初期化エラー。設定値を確認してください。";
+}
+
+function showLogin(message = "") {
+  document.getElementById("login-screen").style.display = "block";
+  document.getElementById("app-container").style.display = "none";
+  document.getElementById("login-message").textContent = message;
+  document.getElementById("signed-in-email").textContent = "";
+}
+
+function showApp(user) {
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app-container").style.display = "block";
+  document.getElementById("login-message").textContent = "";
+  document.getElementById("signed-in-email").textContent = user.email || "";
+}
+
+function isSchoolAccount(user) {
+  if (!user || !user.email) return false;
+  const at = user.email.lastIndexOf("@");
+  if (at < 0) return false;
+  const domain = user.email.slice(at + 1).toLowerCase();
+  return SCHOOL_DOMAIN !== "YOUR_SCHOOL_DOMAIN" &&
+    domain === SCHOOL_DOMAIN.toLowerCase() &&
+    user.emailVerified === true;
+}
+
+async function signInWithGoogle() {
+  if (!auth) {
+    showLogin("Firebase の設定値を確認してください。");
+    return;
+  }
+  if (SCHOOL_DOMAIN === "YOUR_SCHOOL_DOMAIN") {
+    showLogin("HTML内の SCHOOL_DOMAIN を学校のドメインに変更してください。");
+    return;
+  }
+  const button = document.getElementById("google-signin-btn");
+  button.disabled = true;
   try {
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-    
-    const connectedRef = db.ref(".info/connected");
-    connectedRef.on("value", (snap) => {
-      const statusEl = document.getElementById("connection-status");
-      if (snap.val() === true) {
-        statusEl.style.background = "#d4edda";
-        statusEl.style.color = "#155724";
-        statusEl.textContent = "🟢 オンライン: リアルタイム同期が有効です";
-      } else {
-        statusEl.style.background = "#f8d7da";
-        statusEl.style.color = "#721c24";
-        statusEl.textContent = "🔴 オフライン: サーバーに接続されていません";
+    const provider = new firebase.auth.GoogleAuthProvider();
+    // hd はGoogleログイン画面の表示補助。実際の判定は下のドメイン検証で行う。
+    provider.setCustomParameters({ hd: SCHOOL_DOMAIN, prompt: "select_account" });
+    const result = await auth.signInWithPopup(provider);
+    if (!isSchoolAccount(result.user)) {
+      await auth.signOut();
+      showLogin("学校指定のGoogleアカウントでログインしてください。");
+      return;
+    }
+    showApp(result.user);
+    initializeAppAfterLogin();
+  } catch (error) {
+    console.error("Googleログインエラー:", error);
+    showLogin("ログインできませんでした。Googleログイン設定と承認済みドメインを確認してください。");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function signOutUser() {
+  if (!auth) return;
+  try {
+    await auth.signOut();
+    showLogin("ログアウトしました。");
+  } catch (error) {
+    console.error("ログアウトエラー:", error);
+    alert("ログアウトに失敗しました。");
+  }
+}
+
+function isHRUser() {
+  const user = auth && auth.currentUser;
+  return !!user && HR_UIDS.filter(uid => uid !== "REPLACE_WITH_HR_UID").includes(user.uid);
+}
+
+function requireHR() {
+  if (isHRUser()) return true;
+  alert("この操作は登録されたHR委員アカウントのみ実行できます。HR_UIDSの設定とFirebaseのセキュリティルールを確認してください。");
+  return false;
+}
+
+function stopRealtimeSync() {
+  if (db) SYNC_PATHS.forEach(path => db.ref(path).off());
+  realtimeSyncStarted = false;
+}
+
+function initializeAppAfterLogin() {
+  if (realtimeSyncStarted) return;
+  realtimeSyncStarted = true;
+  generateTimetableInputs();
+  try {
+    personalEventsData = JSON.parse(localStorage.getItem("personal_events") || "[]");
+    if (!Array.isArray(personalEventsData)) personalEventsData = [];
+  } catch {
+    personalEventsData = [];
+  }
+  initRealtimeSync();
+}
+let currentDate = new Date();
+const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+let timeTableData = {};
+let sharedEventsData = [];
+let personalEventsData = [];
+let vacationsData = [];
+let examsData = [];
+let hrData = [];
+let taskBoardData = [];
+
+window.addEventListener("load", () => {
+  if (!auth) {
+    showLogin("Firebaseの設定値を確認してください。");
+    return;
+  }
+  showLogin();
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      stopRealtimeSync();
+      showLogin();
+      return;
+    }
+    if (!isSchoolAccount(user)) {
+      await auth.signOut();
+      showLogin("学校指定のGoogleアカウントでログインしてください。");
+      return;
+    }
+    showApp(user);
+    initializeAppAfterLogin();
+  });
+});
+
+function normalizeList(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object") {
+    return Object.keys(value)
+      .sort((a, b) => Number(a) - Number(b))
+      .map(key => value[key]);
+  }
+  return [];
+}
+
+function initRealtimeSync() {
+if (!db) return;
+
+db.ref('timetable').on('value', (snap) => {
+  timeTableData = snap.val() || {};
+  updateTimetableInputs();
+  renderCalendar();
+});
+
+db.ref('events').on('value', (snap) => {
+  sharedEventsData = normalizeList(snap.val());
+  renderCalendar();
+});
+
+db.ref('vacations').on('value', (snap) => {
+  vacationsData = normalizeList(snap.val());
+  renderCalendar();
+});
+
+db.ref('exams').on('value', (snap) => {
+  examsData = normalizeList(snap.val());
+  renderCalendar();
+});
+
+db.ref('hr_notices').on('value', (snap) => {
+  hrData = normalizeList(snap.val());
+  renderHRNotices();
+});
+
+db.ref('task_board').on('value', (snap) => {
+  taskBoardData = normalizeList(snap.val());
+  renderTaskBoard();
+});
+
+}
+
+function pushData(path, data) {
+  if (!db) {
+    alert("Firebaseに接続できません。");
+    return Promise.reject(new Error("Firebase is not initialized"));
+  }
+  return db.ref(path).set(data).catch((error) => {
+    console.error("Firebase保存エラー:", path, error);
+    alert("保存できませんでした。ログイン状態とFirebaseのセキュリティルールを確認してください。");
+    return null;
+  });
+}
+
+function escapeHTML(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function generateTimetableInputs() {
+const container = document.getElementById('timetable-inputs');
+if (!container) return;
+const days = ['月', '火', '水', '木', '金', '土'];
+let html = '';
+days.forEach((day, dIdx) => {
+html += `<div><strong>${day}曜日</strong>`;
+for (let h = 1; h <= 6; h++) {
+html += `<input type="text" id="tt-${dIdx}-${h}" placeholder="${h}限" style="margin-top:2px;">`;
+}
+html += `</div>`;
+});
+container.innerHTML = html;
+}
+
+function updateTimetableInputs() {
+for (let d = 0; d < 6; d++) {
+for (let h = 1; h <= 6; h++) {
+const input = document.getElementById(`tt-${d}-${h}`);
+if (input && timeTableData[d]) {
+input.value = timeTableData[d][h] || '';
+}
+}
+}
+}
+
+function renderCalendar() {
+const year = currentDate.getFullYear();
+const month = currentDate.getMonth();
+
+const monthDisplay = document.getElementById('month-display');
+if (monthDisplay) monthDisplay.textContent = `${year}年 ${month + 1}月`;
+
+const grid = document.getElementById('calendar-grid');
+if (!grid) return;
+grid.innerHTML = '';
+
+dayNames.forEach(name => {
+  const el = document.createElement('div');
+  el.className = 'day-header';
+  el.textContent = name;
+  grid.appendChild(el);
+});
+
+// 曜日ごとの通常時間割ヘッダー（1時間ごとに改行）
+dayNames.forEach((_, index) => {
+  const el = document.createElement('div');
+  el.className = 'timetable-header';
+
+  if (index > 0 && index <= 6) {
+    let html = `<strong>時間割</strong><br>`;
+    let hasSubject = false;
+
+    for (let h = 1; h <= 6; h++) {
+      const val = (timeTableData[index - 1] && timeTableData[index - 1][h]) || '';
+      if (val.trim() !== '') {
+        html += `${h}限: ${escapeHTML(val)}<br>`;
+        hasSubject = true;
       }
-    });
-  } catch (e) {
-    console.error("Firebase初期化エラー:", e);
-    document.getElementById("connection-status").textContent = "❌ 初期化エラー: Firebaseに接続できません";
+    }
+    el.innerHTML = hasSubject ? html : '<strong>時間割</strong><br>-';
+  } else {
+    el.innerHTML = '<strong>時間割</strong><br>休業日';
+  }
+  grid.appendChild(el);
+});
+
+const firstDay = new Date(year, month, 1).getDay();
+const lastDate = new Date(year, month + 1, 0).getDate();
+
+for (let i = 0; i < firstDay; i++) {
+  const emptyCell = document.createElement('div');
+  emptyCell.className = 'day-cell';
+  emptyCell.style.background = '#f9f9f9';
+  grid.appendChild(emptyCell);
+}
+
+for (let date = 1; date <= lastDate; date++) {
+  const cell = document.createElement('div');
+  cell.className = 'day-cell';
+
+  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+  cell.innerHTML = `<div class="day-number">${date}</div>`;
+
+  // 長期休みの判定 (↔付きでカレンダーに表示)
+  const vacationName = checkVacationForDate(dateStr);
+  if (vacationName) {
+    const vacEl = document.createElement('div');
+    vacEl.className = 'vacation-banner';
+    vacEl.textContent = `↔ ${vacationName}`;
+    cell.appendChild(vacEl);
   }
 
-  let currentDate = new Date();
-  const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+  // 定期試験の変則時間割判定
+  const examInfo = checkExamForDate(dateStr);
+  if (examInfo) {
+    const examEl = document.createElement('div');
+    examEl.style.cssText = 'font-size:0.75em; background:#fff3cd; border:1px solid #ffc107; padding:3px; margin-bottom:4px; border-radius:3px;';
+    let examHtml = `<strong>📝 ${escapeHTML(examInfo.name)}</strong><br>`;
+    let hasExamTt = false;
+    if (examInfo.dailySchedule) {
+      for (let h = 1; h <= 3; h++) {
+        if (examInfo.dailySchedule[h]) {
+          examHtml += `${h}限: ${escapeHTML(examInfo.dailySchedule[h])}<br>`;
+          hasExamTt = true;
+        }
+      }
+    }
+    if (!hasExamTt) examHtml += '<span style="color:#666;">（時間割未設定）</span>';
+    examEl.innerHTML = examHtml;
+    cell.appendChild(examEl);
+  }
 
-  let timeTableData = {};
-  let sharedEventsData = [];
-  let personalEventsData = [];
-  let vacationsData = [];
-  let examsData = [];
-  let hrData = [];
-  let taskBoardData = [];
+  // 全体共有イベント
+  sharedEventsData.forEach((ev, idx) => {
+    if (ev && ev.date === dateStr) {
+      const evEl = document.createElement('div');
+      const tagClass = getTagClass(ev.tag);
+      evEl.className = `event-item ${tagClass}`;
+      evEl.innerHTML = `
+        <div class="event-header-row">
+          <span class="event-time">[共:${escapeHTML(ev.time || '')}]</span>
+          <span>
+            <button class="btn-small btn-edit" onclick="editEvent('shared', ${idx})">改</button>
+            <button class="btn-small btn-danger" onclick="deleteEvent('shared', ${idx})">✕</button>
+          </span>
+        </div>
+        <div class="event-desc">${escapeHTML(ev.desc || '')}</div>
+      `;
+      cell.appendChild(evEl);
+    }
+  });
 
-  window.onload = () => {
-    generateTimetableInputs();
-    personalEventsData = JSON.parse(localStorage.getItem('personal_events')) || [];
-    initRealtimeSync();
+  // 個人イベント
+  personalEventsData.forEach((ev, idx) => {
+    if (ev && ev.date === dateStr) {
+      const evEl = document.createElement('div');
+      const tagClass = getTagClass(ev.tag);
+      evEl.className = `event-item ${tagClass}`;
+      evEl.innerHTML = `
+        <div class="event-header-row">
+          <span class="event-time">[個:${escapeHTML(ev.time || '')}]</span>
+          <span>
+            <button class="btn-small btn-edit" onclick="editEvent('personal', ${idx})">改</button>
+            <button class="btn-small btn-danger" onclick="deleteEvent('personal', ${idx})">✕</button>
+          </span>
+        </div>
+        <div class="event-desc">${escapeHTML(ev.desc || '')}</div>
+      `;
+      cell.appendChild(evEl);
+    }
+  });
+
+  grid.appendChild(cell);
+}
+
+renderVacationList();
+renderExamList();
+
+}
+
+function getTagClass(tag) {
+switch (tag) {
+case 'danger': return 'tag-danger';
+case 'success': return 'tag-success';
+case 'warning': return 'tag-warning';
+case 'purple': return 'tag-purple';
+default: return 'tag-default';
+}
+}
+
+function checkVacationForDate(dateStr) {
+const target = new Date(dateStr);
+for (let v of vacationsData) {
+if (!v || !v.start || !v.end) continue;
+const vStart = new Date(v.start);
+const vEnd = new Date(v.end);
+if (target >= vStart && target <= vEnd) {
+return v.name;
+}
+}
+return null;
+}
+
+function checkExamForDate(dateStr) {
+const target = new Date(dateStr);
+for (let e of examsData) {
+if (!e || !e.start || !e.end) continue;
+const eStart = new Date(e.start);
+const eEnd = new Date(e.end);
+if (target >= eStart && target <= eEnd) {
+const dailySchedule = (e.schedules && e.schedules[dateStr]) || null;
+return { name: e.name, dailySchedule };
+}
+}
+return null;
+}
+
+function changeMonth(diff) {
+currentDate.setMonth(currentDate.getMonth() + diff);
+renderCalendar();
+}
+
+function saveTimetable() {
+if (!requireHR()) return;
+
+let data = {};
+for (let d = 0; d < 6; d++) {
+  data[d] = {};
+  for (let h = 1; h <= 6; h++) {
+    const input = document.getElementById(`tt-${d}-${h}`);
+    data[d][h] = input ? input.value : '';
+  }
+}
+pushData('timetable', data);
+
+}
+
+/* --- 定期試験管理（日別3限まで） --- */
+function generateExamDateInputs() {
+const startStr = document.getElementById('exam-start').value;
+const endStr = document.getElementById('exam-end').value;
+const container = document.getElementById('exam-daily-inputs-container');
+const btnSave = document.getElementById('btn-save-exam');
+
+if (!startStr || !endStr) {
+  container.innerHTML = '';
+  btnSave.style.display = 'none';
+  return;
+}
+
+const start = new Date(startStr);
+const end = new Date(endStr);
+
+if (start > end) {
+  container.innerHTML = '<p style="color:red;">開始日は終了日より前の日付にしてください。</p>';
+  btnSave.style.display = 'none';
+  return;
+}
+
+let curr = new Date(start);
+let html = '<p style="font-size:0.85em; margin: 10px 0 5px 0;"><strong>各日の試験時間割（最大3限目まで）:</strong></p>';
+
+while (curr <= end) {
+  const dateVal = curr.toISOString().split('T')[0];
+  const m = curr.getMonth() + 1;
+  const d = curr.getDate();
+  const dayName = dayNames[curr.getDay()];
+
+  html += `
+    <div class="exam-date-row">
+      <strong style="font-size:0.85em;">📅 ${m}/${d} (${dayName})</strong>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 3px;">
+        <input type="text" id="exam-input-${dateVal}-1" placeholder="1限">
+        <input type="text" id="exam-input-${dateVal}-2" placeholder="2限">
+        <input type="text" id="exam-input-${dateVal}-3" placeholder="3限">
+      </div>
+    </div>
+  `;
+  curr.setDate(curr.getDate() + 1);
+}
+
+container.innerHTML = html;
+btnSave.style.display = 'inline-block';
+
+}
+
+function addExamSchedule() {
+if (!requireHR()) return;
+
+const startStr = document.getElementById('exam-start').value;
+const endStr = document.getElementById('exam-end').value;
+const name = document.getElementById('exam-name').value;
+
+if (!startStr || !endStr || !name) {
+  alert('試験の開始日・終了日・名称を入力してください。');
+  return;
+}
+
+const start = new Date(startStr);
+const end = new Date(endStr);
+
+let schedules = {};
+let curr = new Date(start);
+
+while (curr <= end) {
+  const dateVal = curr.toISOString().split('T')[0];
+  schedules[dateVal] = {
+    1: document.getElementById(`exam-input-${dateVal}-1`)?.value || '',
+    2: document.getElementById(`exam-input-${dateVal}-2`)?.value || '',
+    3: document.getElementById(`exam-input-${dateVal}-3`)?.value || ''
   };
+  curr.setDate(curr.getDate() + 1);
+}
 
-  function initRealtimeSync() {
-    if (!db) return;
+examsData.push({ start: startStr, end: endStr, name, schedules });
+pushData('exams', examsData);
 
-    db.ref('timetable').on('value', (snap) => {
-      timeTableData = snap.val() || {};
-      updateTimetableInputs();
-      renderCalendar();
-    });
+document.getElementById('exam-start').value = '';
+document.getElementById('exam-end').value = '';
+document.getElementById('exam-name').value = '';
+document.getElementById('exam-daily-inputs-container').innerHTML = '';
+document.getElementById('btn-save-exam').style.display = 'none';
 
-    db.ref('events').on('value', (snap) => {
-      sharedEventsData = snap.val() || [];
-      renderCalendar();
-    });
+}
 
-    db.ref('vacations').on('value', (snap) => {
-      vacationsData = snap.val() || [];
-      renderCalendar();
-    });
+function deleteExamSchedule(idx) {
+if (!requireHR()) return;
+if (confirm('この定期試験設定を削除しますか？')) {
+examsData.splice(idx, 1);
+pushData('exams', examsData);
+}
+}
 
-    db.ref('exams').on('value', (snap) => {
-      examsData = snap.val() || [];
-      renderCalendar();
-    });
+function renderExamList() {
+const display = document.getElementById('exam-list-display');
+if (!display) return;
 
-    db.ref('hr_notices').on('value', (snap) => {
-      hrData = snap.val() || [];
-      renderHRNotices();
-    });
-
-    db.ref('task_board').on('value', (snap) => {
-      taskBoardData = snap.val() || [];
-      renderTaskBoard();
-    });
+if (examsData.length === 0) {
+  display.innerHTML = '<p>登録済みの定期試験はありません。</p>';
+  return;
+}
+let html = '<strong>登録済み定期試験:</strong><ul>';
+examsData.forEach((e, idx) => {
+  if (e) {
+    html += `<li>${escapeHTML(e.name)}: ${e.start} 〜 ${e.end} 
+      <button class="btn-small btn-danger" onclick="deleteExamSchedule(${idx})">削除</button></li>`;
   }
+});
+html += '</ul>';
+display.innerHTML = html;
 
-  function pushData(path, data) {
-    if (db) {
-      db.ref(path).set(data);
-    }
+}
+
+/* --- 休業期間 --- */
+function addVacation() {
+const start = document.getElementById('vacation-start').value;
+const end = document.getElementById('vacation-end').value;
+const name = document.getElementById('vacation-name').value;
+
+if(!start || !end || !name) {
+  alert('休みの開始日・終了日・名称を入力してください。');
+  return;
+}
+
+vacationsData.push({ start, end, name });
+pushData('vacations', vacationsData);
+
+document.getElementById('vacation-start').value = '';
+document.getElementById('vacation-end').value = '';
+document.getElementById('vacation-name').value = '';
+
+}
+
+function deleteVacation(idx) {
+if (confirm('この休業期間を削除しますか？')) {
+vacationsData.splice(idx, 1);
+pushData('vacations', vacationsData);
+}
+}
+
+function renderVacationList() {
+const display = document.getElementById('vacation-list-display');
+if (!display) return;
+
+if(vacationsData.length === 0) {
+  display.innerHTML = '<p>登録済みの長期休業はありません。</p>';
+  return;
+}
+let html = '<strong>登録済み休業期間:</strong><ul>';
+vacationsData.forEach((v, idx) => {
+  if (v) {
+    html += `<li>${escapeHTML(v.name)}: ${v.start} 〜 ${v.end} 
+      <button class="btn-small btn-danger" onclick="deleteVacation(${idx})">削除</button></li>`;
   }
+});
+html += '</ul>';
+display.innerHTML = html;
 
-  function escapeHTML(str) {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
+}
 
-  function generateTimetableInputs() {
-    const container = document.getElementById('timetable-inputs');
-    if (!container) return;
-    const days = ['月', '火', '水', '木', '金', '土'];
-    let html = '';
-    days.forEach((day, dIdx) => {
-      html += `<div><strong>${day}曜日</strong>`;
-      for (let h = 1; h <= 6; h++) {
-        html += `<input type="text" id="tt-${dIdx}-${h}" placeholder="${h}限" style="margin-top:2px;">`;
-      }
-      html += `</div>`;
-    });
-    container.innerHTML = html;
-  }
+/* --- 予定の登録・編集・削除 --- */
+function sendNotice() {
+const scope = document.getElementById('event-scope').value;
+const tag = document.getElementById('event-tag').value;
+const date = document.getElementById('event-date').value;
+const time = document.getElementById('event-time').value;
+const desc = document.getElementById('event-desc').value;
+const editIndex = parseInt(document.getElementById('event-edit-index').value);
 
-  function updateTimetableInputs() {
-    for (let d = 0; d < 6; d++) {
-      for (let h = 1; h <= 6; h++) {
-        const input = document.getElementById(`tt-${d}-${h}`);
-        if (input && timeTableData[d]) {
-          input.value = timeTableData[d][h] || '';
-        }
-      }
-    }
-  }
+if (!date || !desc) {
+  alert('日付と内容を入力してください。');
+  return;
+}
 
-  function renderCalendar() {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+const newEvent = { date, time, desc, tag };
 
-    const monthDisplay = document.getElementById('month-display');
-    if (monthDisplay) monthDisplay.textContent = `${year}年 ${month + 1}月`;
+if (editIndex >= 0) {
+  const oldScope = document.getElementById('event-edit-scope').value;
+  if (oldScope === 'shared') sharedEventsData.splice(editIndex, 1);
+  else personalEventsData.splice(editIndex, 1);
 
-    const grid = document.getElementById('calendar-grid');
-    if (!grid) return;
-    grid.innerHTML = '';
+  if (scope === 'shared') sharedEventsData.push(newEvent);
+  else personalEventsData.push(newEvent);
 
-    dayNames.forEach(name => {
-      const el = document.createElement('div');
-      el.className = 'day-header';
-      el.textContent = name;
-      grid.appendChild(el);
-    });
-
-    // 曜日ごとの通常時間割ヘッダー（1時間ごとに改行）
-    dayNames.forEach((_, index) => {
-      const el = document.createElement('div');
-      el.className = 'timetable-header';
-
-      if (index > 0 && index <= 6) {
-        let html = `<strong>時間割</strong><br>`;
-        let hasSubject = false;
-
-        for (let h = 1; h <= 6; h++) {
-          const val = (timeTableData[index - 1] && timeTableData[index - 1][h]) || '';
-          if (val.trim() !== '') {
-            html += `${h}限: ${escapeHTML(val)}<br>`;
-            hasSubject = true;
-          }
-        }
-        el.innerHTML = hasSubject ? html : '<strong>時間割</strong><br>-';
-      } else {
-        el.innerHTML = '<strong>時間割</strong><br>休業日';
-      }
-      grid.appendChild(el);
-    });
-
-    const firstDay = new Date(year, month, 1).getDay();
-    const lastDate = new Date(year, month + 1, 0).getDate();
-
-    for (let i = 0; i < firstDay; i++) {
-      const emptyCell = document.createElement('div');
-      emptyCell.className = 'day-cell';
-      emptyCell.style.background = '#f9f9f9';
-      grid.appendChild(emptyCell);
-    }
-
-    for (let date = 1; date <= lastDate; date++) {
-      const cell = document.createElement('div');
-      cell.className = 'day-cell';
-
-      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
-      cell.innerHTML = `<div class="day-number">${date}</div>`;
-
-      // 長期休みの判定 (↔付きでカレンダーに表示)
-      const vacationName = checkVacationForDate(dateStr);
-      if (vacationName) {
-        const vacEl = document.createElement('div');
-        vacEl.className = 'vacation-banner';
-        vacEl.textContent = `↔ ${vacationName}`;
-        cell.appendChild(vacEl);
-      }
-
-      // 定期試験の変則時間割判定
-      const examInfo = checkExamForDate(dateStr);
-      if (examInfo) {
-        const examEl = document.createElement('div');
-        examEl.style.cssText = 'font-size:0.75em; background:#fff3cd; border:1px solid #ffc107; padding:3px; margin-bottom:4px; border-radius:3px;';
-        let examHtml = `<strong>📝 ${escapeHTML(examInfo.name)}</strong><br>`;
-        let hasExamTt = false;
-        if (examInfo.dailySchedule) {
-          for (let h = 1; h <= 3; h++) {
-            if (examInfo.dailySchedule[h]) {
-              examHtml += `${h}限: ${escapeHTML(examInfo.dailySchedule[h])}<br>`;
-              hasExamTt = true;
-            }
-          }
-        }
-        if (!hasExamTt) examHtml += '<span style="color:#666;">（時間割未設定）</span>';
-        examEl.innerHTML = examHtml;
-        cell.appendChild(examEl);
-      }
-
-      // 全体共有イベント
-      sharedEventsData.forEach((ev, idx) => {
-        if (ev && ev.date === dateStr) {
-          const evEl = document.createElement('div');
-          const tagClass = getTagClass(ev.tag);
-          evEl.className = `event-item ${tagClass}`;
-          evEl.innerHTML = `
-            <div class="event-header-row">
-              <span class="event-time">[共:${escapeHTML(ev.time || '')}]</span>
-              <span>
-                <button class="btn-small btn-edit" onclick="editEvent('shared', ${idx})">改</button>
-                <button class="btn-small btn-danger" onclick="deleteEvent('shared', ${idx})">✕</button>
-              </span>
-            </div>
-            <div class="event-desc">${escapeHTML(ev.desc || '')}</div>
-          `;
-          cell.appendChild(evEl);
-        }
-      });
-
-      // 個人イベント
-      personalEventsData.forEach((ev, idx) => {
-        if (ev && ev.date === dateStr) {
-          const evEl = document.createElement('div');
-          const tagClass = getTagClass(ev.tag);
-          evEl.className = `event-item ${tagClass}`;
-          evEl.innerHTML = `
-            <div class="event-header-row">
-              <span class="event-time">[個:${escapeHTML(ev.time || '')}]</span>
-              <span>
-                <button class="btn-small btn-edit" onclick="editEvent('personal', ${idx})">改</button>
-                <button class="btn-small btn-danger" onclick="deleteEvent('personal', ${idx})">✕</button>
-              </span>
-            </div>
-            <div class="event-desc">${escapeHTML(ev.desc || '')}</div>
-          `;
-          cell.appendChild(evEl);
-        }
-      });
-
-      grid.appendChild(cell);
-    }
-
-    renderVacationList();
-    renderExamList();
-  }
-
-  function getTagClass(tag) {
-    switch (tag) {
-      case 'danger': return 'tag-danger';
-      case 'success': return 'tag-success';
-      case 'warning': return 'tag-warning';
-      case 'purple': return 'tag-purple';
-      default: return 'tag-default';
-    }
-  }
-
-  function checkVacationForDate(dateStr) {
-    const target = new Date(dateStr);
-    for (let v of vacationsData) {
-      if (!v || !v.start || !v.end) continue;
-      const vStart = new Date(v.start);
-      const vEnd = new Date(v.end);
-      if (target >= vStart && target <= vEnd) {
-        return v.name;
-      }
-    }
-    return null;
-  }
-
-  function checkExamForDate(dateStr) {
-    const target = new Date(dateStr);
-    for (let e of examsData) {
-      if (!e || !e.start || !e.end) continue;
-      const eStart = new Date(e.start);
-      const eEnd = new Date(e.end);
-      if (target >= eStart && target <= eEnd) {
-        const dailySchedule = (e.schedules && e.schedules[dateStr]) || null;
-        return { name: e.name, dailySchedule };
-      }
-    }
-    return null;
-  }
-
-  function changeMonth(diff) {
-    currentDate.setMonth(currentDate.getMonth() + diff);
+  pushData('events', sharedEventsData);
+  localStorage.setItem('personal_events', JSON.stringify(personalEventsData));
+  cancelEventEdit();
+} else {
+  if (scope === 'shared') {
+    sharedEventsData.push(newEvent);
+    pushData('events', sharedEventsData);
+  } else {
+    personalEventsData.push(newEvent);
+    localStorage.setItem('personal_events', JSON.stringify(personalEventsData));
     renderCalendar();
   }
+}
 
-  function saveTimetable() {
-    const pass = prompt('通常時間割を変更するにはHR委員のパスワードを入力してください:');
-    if (pass !== '8192') {
-      alert('パスワードが正しくありません。');
-      return;
-    }
+document.getElementById('event-time').value = '';
+document.getElementById('event-desc').value = '';
 
-    let data = {};
-    for (let d = 0; d < 6; d++) {
-      data[d] = {};
-      for (let h = 1; h <= 6; h++) {
-        const input = document.getElementById(`tt-${d}-${h}`);
-        data[d][h] = input ? input.value : '';
-      }
-    }
-    pushData('timetable', data);
-  }
+}
 
-  /* --- 定期試験管理（日別3限まで） --- */
-  function generateExamDateInputs() {
-    const startStr = document.getElementById('exam-start').value;
-    const endStr = document.getElementById('exam-end').value;
-    const container = document.getElementById('exam-daily-inputs-container');
-    const btnSave = document.getElementById('btn-save-exam');
+function editEvent(scope, idx) {
+const ev = (scope === 'shared') ? sharedEventsData[idx] : personalEventsData[idx];
+if (!ev) return;
 
-    if (!startStr || !endStr) {
-      container.innerHTML = '';
-      btnSave.style.display = 'none';
-      return;
-    }
+document.getElementById('event-scope').value = scope;
+document.getElementById('event-tag').value = ev.tag || 'default';
+document.getElementById('event-date').value = ev.date;
+document.getElementById('event-time').value = ev.time || '';
+document.getElementById('event-desc').value = ev.desc || '';
 
-    const start = new Date(startStr);
-    const end = new Date(endStr);
+document.getElementById('event-edit-index').value = idx;
+document.getElementById('event-edit-scope').value = scope;
+document.getElementById('event-form-title').textContent = '予定の編集';
+document.getElementById('event-submit-btn').textContent = '変更を保存';
+document.getElementById('event-cancel-btn').style.display = 'inline-block';
 
-    if (start > end) {
-      container.innerHTML = '<p style="color:red;">開始日は終了日より前の日付にしてください。</p>';
-      btnSave.style.display = 'none';
-      return;
-    }
+}
 
-    let curr = new Date(start);
-    let html = '<p style="font-size:0.85em; margin: 10px 0 5px 0;"><strong>各日の試験時間割（最大3限目まで）:</strong></p>';
-    
-    while (curr <= end) {
-      const dateVal = curr.toISOString().split('T')[0];
-      const m = curr.getMonth() + 1;
-      const d = curr.getDate();
-      const dayName = dayNames[curr.getDay()];
+function cancelEventEdit() {
+document.getElementById('event-edit-index').value = -1;
+document.getElementById('event-edit-scope').value = '';
+document.getElementById('event-form-title').textContent = '予定の登録・編集';
+document.getElementById('event-submit-btn').textContent = '予定を追加';
+document.getElementById('event-cancel-btn').style.display = 'none';
+document.getElementById('event-time').value = '';
+document.getElementById('event-desc').value = '';
+}
 
-      html += `
-        <div class="exam-date-row">
-          <strong style="font-size:0.85em;">📅 ${m}/${d} (${dayName})</strong>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-top: 3px;">
-            <input type="text" id="exam-input-${dateVal}-1" placeholder="1限">
-            <input type="text" id="exam-input-${dateVal}-2" placeholder="2限">
-            <input type="text" id="exam-input-${dateVal}-3" placeholder="3限">
-          </div>
+function deleteEvent(scope, idx) {
+if (confirm('この予定を削除しますか？')) {
+if (scope === 'shared') {
+sharedEventsData.splice(idx, 1);
+pushData('events', sharedEventsData);
+} else {
+personalEventsData.splice(idx, 1);
+localStorage.setItem('personal_events', JSON.stringify(personalEventsData));
+renderCalendar();
+}
+}
+}
+
+/* --- HR委員からのお知らせ --- */
+function sendHRNotice() {
+if (!requireHR()) return;
+const text = document.getElementById('hr-text').value;
+const editIndex = parseInt(document.getElementById('hr-edit-index').value);
+
+if (!text) {
+  alert('お知らせ内容を入力してください。');
+  return;
+}
+
+const timestamp = new Date().toLocaleString();
+
+if (editIndex >= 0) {
+  hrData[editIndex] = { text, date: `${timestamp} (編集済)` };
+  cancelHREdit();
+} else {
+  hrData.unshift({ text, date: timestamp });
+}
+
+pushData('hr_notices', hrData);
+document.getElementById('hr-text').value = '';
+
+}
+
+function editHRNotice(idx) {
+const item = hrData[idx];
+if (!item) return;
+
+document.getElementById('hr-text').value = typeof item === 'object' ? item.text : item;
+document.getElementById('hr-edit-index').value = idx;
+document.getElementById('hr-submit-btn').textContent = '変更を保存';
+document.getElementById('hr-cancel-btn').style.display = 'inline-block';
+
+}
+
+function cancelHREdit() {
+document.getElementById('hr-edit-index').value = -1;
+document.getElementById('hr-submit-btn').textContent = 'お知らせを送信';
+document.getElementById('hr-cancel-btn').style.display = 'none';
+document.getElementById('hr-text').value = '';
+}
+
+function deleteHRNotice(idx) {
+if (!requireHR()) return;
+if (confirm('このお知らせを削除しますか？')) {
+hrData.splice(idx, 1);
+pushData('hr_notices', hrData);
+}
+}
+
+function renderHRNotices() {
+const listDisplay = document.getElementById('hr-list-display');
+if (!listDisplay) return;
+
+if (hrData.length === 0) {
+  listDisplay.innerHTML = '<p style="color: #777;">現在お知らせはありません。</p>';
+  return;
+}
+
+listDisplay.innerHTML = hrData.map((item, idx) => {
+  if (!item) return '';
+  const text = typeof item === 'object' ? item.text : item;
+  const date = typeof item === 'object' ? item.date : '';
+
+  return `
+    <div class="card-item hr-notice">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+        <strong style="color: #007bff;">📢 HR委員より</strong>
+        <div>
+          <span style="font-size: 0.75em; color: #888; margin-right: 8px;">${date}</span>
+          <button class="btn-small btn-edit" onclick="editHRNotice(${idx})">編集</button>
+          <button class="btn-small btn-danger" onclick="deleteHRNotice(${idx})">削除</button>
         </div>
-      `;
-      curr.setDate(curr.getDate() + 1);
-    }
+      </div>
+      <p style="margin: 5px 0; font-size: 0.95em; white-space: pre-wrap;">${escapeHTML(text)}</p>
+    </div>
+  `;
+}).join('');
 
-    container.innerHTML = html;
-    btnSave.style.display = 'inline-block';
+}
+
+/* --- 課題掲示板 --- */
+function postTask() {
+const title = document.getElementById('task-title').value;
+const detail = document.getElementById('task-detail').value;
+const fileInput = document.getElementById('task-image');
+const file = fileInput ? fileInput.files[0] : null;
+const editIndex = parseInt(document.getElementById('task-edit-index').value);
+
+if (!title) {
+  alert('科目・タイトルを入力してください。');
+  return;
+}
+
+const timestamp = new Date().toLocaleString();
+
+if (file) {
+  if (!file.type.startsWith('image/')) {
+    alert('画像ファイルを選択してください。');
+    return;
   }
-
-  function addExamSchedule() {
-    const pass = prompt('定期試験を設定するにはHR委員のパスワードを入力してください:');
-    if (pass !== '8192') {
-      alert('パスワードが正しくありません。');
-      return;
-    }
-
-    const startStr = document.getElementById('exam-start').value;
-    const endStr = document.getElementById('exam-end').value;
-    const name = document.getElementById('exam-name').value;
-
-    if (!startStr || !endStr || !name) {
-      alert('試験の開始日・終了日・名称を入力してください。');
-      return;
-    }
-
-    const start = new Date(startStr);
-    const end = new Date(endStr);
-
-    let schedules = {};
-    let curr = new Date(start);
-
-    while (curr <= end) {
-      const dateVal = curr.toISOString().split('T')[0];
-      schedules[dateVal] = {
-        1: document.getElementById(`exam-input-${dateVal}-1`)?.value || '',
-        2: document.getElementById(`exam-input-${dateVal}-2`)?.value || '',
-        3: document.getElementById(`exam-input-${dateVal}-3`)?.value || ''
-      };
-      curr.setDate(curr.getDate() + 1);
-    }
-
-    examsData.push({ start: startStr, end: endStr, name, schedules });
-    pushData('exams', examsData);
-
-    document.getElementById('exam-start').value = '';
-    document.getElementById('exam-end').value = '';
-    document.getElementById('exam-name').value = '';
-    document.getElementById('exam-daily-inputs-container').innerHTML = '';
-    document.getElementById('btn-save-exam').style.display = 'none';
+  if (file.size > 2 * 1024 * 1024) {
+    alert('画像は2MB以下にしてください。Realtime Databaseへの巨大な画像保存は避けてください。');
+    return;
   }
-
-  function deleteExamSchedule(idx) {
-    const pass = prompt('定期試験設定を削除するにはHR委員のパスワードを入力してください:');
-    if (pass !== '8192') {
-      alert('パスワードが正しくありません。');
-      return;
-    }
-    if (confirm('この定期試験設定を削除しますか？')) {
-      examsData.splice(idx, 1);
-      pushData('exams', examsData);
-    }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    saveTaskEntry({ title, detail, image: e.target.result, date: timestamp }, editIndex);
+  };
+  reader.onerror = function() {
+    alert('画像を読み込めませんでした。別の画像を選択してください。');
+  };
+  reader.readAsDataURL(file);
+} else {
+  let existingImage = null;
+  if (editIndex >= 0 && taskBoardData[editIndex]) {
+    existingImage = taskBoardData[editIndex].image;
   }
+  saveTaskEntry({ title, detail, image: existingImage, date: timestamp }, editIndex);
+}
 
-  function renderExamList() {
-    const display = document.getElementById('exam-list-display');
-    if (!display) return;
+}
 
-    if (examsData.length === 0) {
-      display.innerHTML = '<p>登録済みの定期試験はありません。</p>';
-      return;
-    }
-    let html = '<strong>登録済み定期試験:</strong><ul>';
-    examsData.forEach((e, idx) => {
-      if (e) {
-        html += `<li>${escapeHTML(e.name)}: ${e.start} 〜 ${e.end} 
-          <button class="btn-small btn-danger" onclick="deleteExamSchedule(${idx})">削除</button></li>`;
-      }
-    });
-    html += '</ul>';
-    display.innerHTML = html;
-  }
+function saveTaskEntry(newTask, editIndex) {
+if (editIndex >= 0) {
+taskBoardData[editIndex] = newTask;
+cancelTaskEdit();
+} else {
+taskBoardData.unshift(newTask);
+}
 
-  /* --- 休業期間 --- */
-  function addVacation() {
-    const start = document.getElementById('vacation-start').value;
-    const end = document.getElementById('vacation-end').value;
-    const name = document.getElementById('vacation-name').value;
+pushData('task_board', taskBoardData);
 
-    if(!start || !end || !name) {
-      alert('休みの開始日・終了日・名称を入力してください。');
-      return;
-    }
+document.getElementById('task-title').value = '';
+document.getElementById('task-detail').value = '';
+const fileInput = document.getElementById('task-image');
+if (fileInput) fileInput.value = '';
 
-    vacationsData.push({ start, end, name });
-    pushData('vacations', vacationsData);
+}
 
-    document.getElementById('vacation-start').value = '';
-    document.getElementById('vacation-end').value = '';
-    document.getElementById('vacation-name').value = '';
-  }
+function editTask(idx) {
+const item = taskBoardData[idx];
+if (!item) return;
 
-  function deleteVacation(idx) {
-    if (confirm('この休業期間を削除しますか？')) {
-      vacationsData.splice(idx, 1);
-      pushData('vacations', vacationsData);
-    }
-  }
+document.getElementById('task-title').value = item.title || '';
+document.getElementById('task-detail').value = item.detail || '';
+document.getElementById('task-edit-index').value = idx;
 
-  function renderVacationList() {
-    const display = document.getElementById('vacation-list-display');
-    if (!display) return;
+const preview = document.getElementById('task-image-preview');
+if (item.image) {
+  preview.textContent = '※既に画像が添付されています（選択し直さない場合はそのまま保持されます）';
+} else {
+  preview.textContent = '';
+}
 
-    if(vacationsData.length === 0) {
-      display.innerHTML = '<p>登録済みの長期休業はありません。</p>';
-      return;
-    }
-    let html = '<strong>登録済み休業期間:</strong><ul>';
-    vacationsData.forEach((v, idx) => {
-      if (v) {
-        html += `<li>${escapeHTML(v.name)}: ${v.start} 〜 ${v.end} 
-          <button class="btn-small btn-danger" onclick="deleteVacation(${idx})">削除</button></li>`;
-      }
-    });
-    html += '</ul>';
-    display.innerHTML = html;
-  }
+document.getElementById('task-form-title').textContent = '課題の編集';
+document.getElementById('task-submit-btn').textContent = '変更を保存';
+document.getElementById('task-cancel-btn').style.display = 'inline-block';
 
-  /* --- 予定の登録・編集・削除 --- */
-  function sendNotice() {
-    const scope = document.getElementById('event-scope').value;
-    const tag = document.getElementById('event-tag').value;
-    const date = document.getElementById('event-date').value;
-    const time = document.getElementById('event-time').value;
-    const desc = document.getElementById('event-desc').value;
-    const editIndex = parseInt(document.getElementById('event-edit-index').value);
+}
 
-    if (!date || !desc) {
-      alert('日付と内容を入力してください。');
-      return;
-    }
+function cancelTaskEdit() {
+document.getElementById('task-edit-index').value = -1;
+document.getElementById('task-form-title').textContent = '課題掲示板（写真添付可・全員共有）';
+document.getElementById('task-submit-btn').textContent = '課題を投稿する';
+document.getElementById('task-cancel-btn').style.display = 'none';
+document.getElementById('task-title').value = '';
+document.getElementById('task-detail').value = '';
+document.getElementById('task-image-preview').textContent = '';
+const fileInput = document.getElementById('task-image');
+if (fileInput) fileInput.value = '';
+}
 
-    const newEvent = { date, time, desc, tag };
+function deleteTask(idx) {
+if (confirm('この課題を削除しますか？')) {
+taskBoardData.splice(idx, 1);
+pushData('task_board', taskBoardData);
+}
+}
 
-    if (editIndex >= 0) {
-      const oldScope = document.getElementById('event-edit-scope').value;
-      if (oldScope === 'shared') sharedEventsData.splice(editIndex, 1);
-      else personalEventsData.splice(editIndex, 1);
+function renderTaskBoard() {
+const listDisplay = document.getElementById('task-board-list');
+if (!listDisplay) return;
 
-      if (scope === 'shared') sharedEventsData.push(newEvent);
-      else personalEventsData.push(newEvent);
+if (taskBoardData.length === 0) {
+  listDisplay.innerHTML = '<p style="color: #777;">現在投稿されている課題はありません。</p>';
+  return;
+}
 
-      pushData('events', sharedEventsData);
-      localStorage.setItem('personal_events', JSON.stringify(personalEventsData));
-      cancelEventEdit();
-    } else {
-      if (scope === 'shared') {
-        sharedEventsData.push(newEvent);
-        pushData('events', sharedEventsData);
-      } else {
-        personalEventsData.push(newEvent);
-        localStorage.setItem('personal_events', JSON.stringify(personalEventsData));
-        renderCalendar();
-      }
-    }
-
-    document.getElementById('event-time').value = '';
-    document.getElementById('event-desc').value = '';
-  }
-
-  function editEvent(scope, idx) {
-    const ev = (scope === 'shared') ? sharedEventsData[idx] : personalEventsData[idx];
-    if (!ev) return;
-
-    document.getElementById('event-scope').value = scope;
-    document.getElementById('event-tag').value = ev.tag || 'default';
-    document.getElementById('event-date').value = ev.date;
-    document.getElementById('event-time').value = ev.time || '';
-    document.getElementById('event-desc').value = ev.desc || '';
-    
-    document.getElementById('event-edit-index').value = idx;
-    document.getElementById('event-edit-scope').value = scope;
-    document.getElementById('event-form-title').textContent = '予定の編集';
-    document.getElementById('event-submit-btn').textContent = '変更を保存';
-    document.getElementById('event-cancel-btn').style.display = 'inline-block';
-  }
-
-  function cancelEventEdit() {
-    document.getElementById('event-edit-index').value = -1;
-    document.getElementById('event-edit-scope').value = '';
-    document.getElementById('event-form-title').textContent = '予定の登録・編集';
-    document.getElementById('event-submit-btn').textContent = '予定を追加';
-    document.getElementById('event-cancel-btn').style.display = 'none';
-    document.getElementById('event-time').value = '';
-    document.getElementById('event-desc').value = '';
-  }
-
-  function deleteEvent(scope, idx) {
-    if (confirm('この予定を削除しますか？')) {
-      if (scope === 'shared') {
-        sharedEventsData.splice(idx, 1);
-        pushData('events', sharedEventsData);
-      } else {
-        personalEventsData.splice(idx, 1);
-        localStorage.setItem('personal_events', JSON.stringify(personalEventsData));
-        renderCalendar();
-      }
-    }
-  }
-
-  /* --- HR委員からのお知らせ --- */
-  function sendHRNotice() {
-    const pass = document.getElementById('hr-pass').value;
-    const text = document.getElementById('hr-text').value;
-    const editIndex = parseInt(document.getElementById('hr-edit-index').value);
-
-    if (pass !== '8192') {
-      alert('パスワードが正しくありません。');
-      return;
-    }
-    if (!text) {
-      alert('お知らせ内容を入力してください。');
-      return;
-    }
-
-    const timestamp = new Date().toLocaleString();
-
-    if (editIndex >= 0) {
-      hrData[editIndex] = { text, date: `${timestamp} (編集済)` };
-      cancelHREdit();
-    } else {
-      hrData.unshift({ text, date: timestamp });
-    }
-
-    pushData('hr_notices', hrData);
-    document.getElementById('hr-text').value = '';
-  }
-
-  function editHRNotice(idx) {
-    const item = hrData[idx];
-    if (!item) return;
-
-    document.getElementById('hr-text').value = typeof item === 'object' ? item.text : item;
-    document.getElementById('hr-edit-index').value = idx;
-    document.getElementById('hr-submit-btn').textContent = '変更を保存';
-    document.getElementById('hr-cancel-btn').style.display = 'inline-block';
-  }
-
-  function cancelHREdit() {
-    document.getElementById('hr-edit-index').value = -1;
-    document.getElementById('hr-submit-btn').textContent = 'お知らせを送信';
-    document.getElementById('hr-cancel-btn').style.display = 'none';
-    document.getElementById('hr-text').value = '';
-  }
-
-  function deleteHRNotice(idx) {
-    const pass = document.getElementById('hr-pass').value;
-    if (pass !== '8192') {
-      alert('削除にはHRパスワードを「HRパスワードを入力」欄に入力してください。');
-      return;
-    }
-    if (confirm('このお知らせを削除しますか？')) {
-      hrData.splice(idx, 1);
-      pushData('hr_notices', hrData);
-    }
-  }
-
-  function renderHRNotices() {
-    const listDisplay = document.getElementById('hr-list-display');
-    if (!listDisplay) return;
-
-    if (hrData.length === 0) {
-      listDisplay.innerHTML = '<p style="color: #777;">現在お知らせはありません。</p>';
-      return;
-    }
-
-    listDisplay.innerHTML = hrData.map((item, idx) => {
-      if (!item) return '';
-      const text = typeof item === 'object' ? item.text : item;
-      const date = typeof item === 'object' ? item.date : '';
-
-      return `
-        <div class="card-item hr-notice">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-            <strong style="color: #007bff;">📢 HR委員より</strong>
-            <div>
-              <span style="font-size: 0.75em; color: #888; margin-right: 8px;">${date}</span>
-              <button class="btn-small btn-edit" onclick="editHRNotice(${idx})">編集</button>
-              <button class="btn-small btn-danger" onclick="deleteHRNotice(${idx})">削除</button>
-            </div>
-          </div>
-          <p style="margin: 5px 0; font-size: 0.95em; white-space: pre-wrap;">${escapeHTML(text)}</p>
+listDisplay.innerHTML = taskBoardData.map((item, idx) => {
+  if (!item) return '';
+  return `
+    <div class="card-item task">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+        <strong style="color: #d9534f; font-size: 1.05em;">📚 ${escapeHTML(item.title)}</strong>
+        <div>
+          <span style="font-size: 0.75em; color: #888; margin-right: 8px;">${item.date || ''}</span>
+          <button class="btn-small btn-edit" onclick="editTask(${idx})">編集</button>
+          <button class="btn-small btn-danger" onclick="deleteTask(${idx})">削除</button>
         </div>
-      `;
-    }).join('');
-  }
+      </div>
+      <p style="margin: 5px 0; font-size: 0.9em; white-space: pre-wrap;">${escapeHTML(item.detail)}</p>
+      ${item.image ? `<div style="margin-top: 8px;"><img src="${escapeHTML(item.image)}" style="max-width: 100%; border-radius: 4px; border: 1px solid #ddd;"></div>` : ''}
+    </div>
+  `;
+}).join('');
 
-  /* --- 課題掲示板 --- */
-  function postTask() {
-    const title = document.getElementById('task-title').value;
-    const detail = document.getElementById('task-detail').value;
-    const fileInput = document.getElementById('task-image');
-    const file = fileInput ? fileInput.files[0] : null;
-    const editIndex = parseInt(document.getElementById('task-edit-index').value);
-
-    if (!title) {
-      alert('科目・タイトルを入力してください。');
-      return;
-    }
-
-    const timestamp = new Date().toLocaleString();
-
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        saveTaskEntry({ title, detail, image: e.target.result, date: timestamp }, editIndex);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      let existingImage = null;
-      if (editIndex >= 0 && taskBoardData[editIndex]) {
-        existingImage = taskBoardData[editIndex].image;
-      }
-      saveTaskEntry({ title, detail, image: existingImage, date: timestamp }, editIndex);
-    }
-  }
-
-  function saveTaskEntry(newTask, editIndex) {
-    if (editIndex >= 0) {
-      taskBoardData[editIndex] = newTask;
-      cancelTaskEdit();
-    } else {
-      taskBoardData.unshift(newTask);
-    }
-
-    pushData('task_board', taskBoardData);
-
-    document.getElementById('task-title').value = '';
-    document.getElementById('task-detail').value = '';
-    const fileInput = document.getElementById('task-image');
-    if (fileInput) fileInput.value = '';
-  }
-
-  function editTask(idx) {
-    const item = taskBoardData[idx];
-    if (!item) return;
-
-    document.getElementById('task-title').value = item.title || '';
-    document.getElementById('task-detail').value = item.detail || '';
-    document.getElementById('task-edit-index').value = idx;
-
-    const preview = document.getElementById('task-image-preview');
-    if (item.image) {
-      preview.textContent = '※既に画像が添付されています（選択し直さない場合はそのまま保持されます）';
-    } else {
-      preview.textContent = '';
-    }
-
-    document.getElementById('task-form-title').textContent = '課題の編集';
-    document.getElementById('task-submit-btn').textContent = '変更を保存';
-    document.getElementById('task-cancel-btn').style.display = 'inline-block';
-  }
-
-  function cancelTaskEdit() {
-    document.getElementById('task-edit-index').value = -1;
-    document.getElementById('task-form-title').textContent = '課題掲示板（写真添付可・全員共有）';
-    document.getElementById('task-submit-btn').textContent = '課題を投稿する';
-    document.getElementById('task-cancel-btn').style.display = 'none';
-    document.getElementById('task-title').value = '';
-    document.getElementById('task-detail').value = '';
-    document.getElementById('task-image-preview').textContent = '';
-    const fileInput = document.getElementById('task-image');
-    if (fileInput) fileInput.value = '';
-  }
-
-  function deleteTask(idx) {
-    if (confirm('この課題を削除しますか？')) {
-      taskBoardData.splice(idx, 1);
-      pushData('task_board', taskBoardData);
-    }
-  }
-
-  function renderTaskBoard() {
-    const listDisplay = document.getElementById('task-board-list');
-    if (!listDisplay) return;
-
-    if (taskBoardData.length === 0) {
-      listDisplay.innerHTML = '<p style="color: #777;">現在投稿されている課題はありません。</p>';
-      return;
-    }
-
-    listDisplay.innerHTML = taskBoardData.map((item, idx) => {
-      if (!item) return '';
-      return `
-        <div class="card-item task">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-            <strong style="color: #d9534f; font-size: 1.05em;">📚 ${escapeHTML(item.title)}</strong>
-            <div>
-              <span style="font-size: 0.75em; color: #888; margin-right: 8px;">${item.date || ''}</span>
-              <button class="btn-small btn-edit" onclick="editTask(${idx})">編集</button>
-              <button class="btn-small btn-danger" onclick="deleteTask(${idx})">削除</button>
-            </div>
-          </div>
-          <p style="margin: 5px 0; font-size: 0.9em; white-space: pre-wrap;">${escapeHTML(item.detail)}</p>
-          ${item.image ? `<div style="margin-top: 8px;"><img src="${item.image}" style="max-width: 100%; border-radius: 4px; border: 1px solid #ddd;"></div>` : ''}
-        </div>
-      `;
-    }).join('');
-  }
+}
 </script>
 </body>
 </html>
