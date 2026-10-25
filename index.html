@@ -181,6 +181,22 @@ button {
   border: 1px solid #ffeba8;
 }
 
+/* スマートフォンでは、ログイン後のアプリ本体をPCに近い幅で表示し、
+   ページ全体を横スクロールできるようにする。ログイン画面は従来どおり画面幅に合わせる。 */
+@media (max-width: 700px) {
+  body {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #app-container.container {
+    width: 1000px;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
 </style>
 
 <!-- Firebase SDK (compat版) -->
