@@ -191,9 +191,21 @@ button {
 <body>
 <div id="login-screen" class="panel" style="max-width:440px;margin:8vh auto;text-align:center;">
   <h1>4Bカレンダー</h1>
-  <p>学校の Google アカウントでログインしてください。</p>
-  <button type="button" id="google-signin-btn" onclick="signInWithGoogle()">Google アカウントでログイン</button>
-  <p id="login-message" role="status" style="color:#b71c1c;white-space:pre-wrap;"></p>
+  <p>学校のメールアドレスで登録・ログインしてください。<br>登録後、確認メールのリンクを開く必要があります。</p>
+  <div class="form-group" style="text-align:left;">
+    <label for="auth-email">学校のメールアドレス</label>
+    <input type="email" id="auth-email" autocomplete="email" placeholder="例: user@waseda-h.ed.jp">
+  </div>
+  <div class="form-group" style="text-align:left;">
+    <label for="auth-password">パスワード（8文字以上）</label>
+    <input type="password" id="auth-password" autocomplete="current-password" minlength="8" placeholder="パスワード">
+  </div>
+  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+    <button type="button" id="email-signin-btn" onclick="signInWithEmail()">ログイン</button>
+    <button type="button" id="email-register-btn" onclick="registerWithEmail()">新規登録</button>
+  </div>
+  <button type="button" id="password-reset-btn" onclick="resetPassword()" style="margin-top:8px;background:#6c757d;">パスワードを忘れた場合</button>
+  <p id="login-message" role="status" aria-live="polite" style="color:#b71c1c;white-space:pre-wrap;"></p>
 </div>
 
 <div class="container" id="app-container" style="display:none;">
@@ -310,17 +322,18 @@ button {
 <button type="button" id="event-cancel-btn" onclick="cancelEventEdit()" style="display:none; background:#888;">キャンセル</button>
 </div>
 
-<!-- HR委員からのお知らせ -->
+<!-- クラス掲示板（学校アカウントでログインした全員が投稿・編集・削除可能） -->
 <div class="panel">
-<h3>HR委員からのお知らせ</h3>
+<h3 id="hr-form-title">クラス掲示板</h3>
 <div class="form-group">
-
-<textarea id="hr-text" placeholder="お知らせ内容を入力" style="height: 60px;"></textarea>
+<label for="hr-text">投稿内容</label>
+<textarea id="hr-text" maxlength="2000" placeholder="クラスへの連絡・質問など（2000文字以内）" style="height: 100px;"></textarea>
 <input type="hidden" id="hr-edit-index" value="-1">
 <div style="margin-top: 8px;">
-<button type="button" id="hr-submit-btn" onclick="sendHRNotice()">お知らせを送信</button>
-<button type="button" id="hr-cancel-btn" onclick="cancelHREdit()" style="display:none; background:#888;">キャンセル</button>
+<button type="button" id="hr-submit-btn" onclick="sendHRNotice()">投稿する</button>
+<button type="button" id="hr-cancel-btn" onclick="cancelHREdit()" style="display:none; background:#888;">編集をキャンセル</button>
 </div>
+<p style="font-size:.8em;color:#666;">学校アカウントでログインした人は投稿を編集・削除できます。個人情報やパスワードは書き込まないでください。</p>
 </div>
 <div id="hr-list-display" class="card-list"></div>
 </div>
@@ -420,32 +433,119 @@ function isSchoolAccount(user) {
     user.emailVerified === true;
 }
 
-async function signInWithGoogle() {
-  if (!auth) {
-    showLogin("Firebase の設定値を確認してください。");
+function validateSchoolEmail(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  const at = normalized.lastIndexOf("@");
+  if (at <= 0) return false;
+  return normalized.slice(at + 1) === SCHOOL_DOMAIN.toLowerCase();
+}
+
+function showAuthError(error, action) {
+  console.error(action + "エラー:", error);
+  const messages = {
+    "auth/email-already-in-use": "このメールアドレスは既に登録されています。ログインしてください。",
+    "auth/invalid-email": "メールアドレスの形式を確認してください。",
+    "auth/weak-password": "パスワードは8文字以上にしてください。",
+    "auth/operation-not-allowed": "Firebase Consoleで「メール/パスワード」認証を有効にしてください。",
+    "auth/too-many-requests": "試行回数が多すぎます。しばらく待ってから再試行してください。",
+    "auth/user-not-found": "アカウントが見つからないか、パスワードが違います。",
+    "auth/wrong-password": "アカウントが見つからないか、パスワードが違います。",
+    "auth/invalid-credential": "メールアドレスまたはパスワードが正しくありません。",
+    "auth/network-request-failed": "通信に失敗しました。ネットワーク接続を確認してください。"
+  };
+  showLogin(messages[error && error.code] || "処理に失敗しました。入力内容とFirebase Authenticationの設定を確認してください。");
+}
+
+async function registerWithEmail() {
+  if (!auth) return showLogin("Firebaseの設定値を確認してください。");
+  const email = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  if (!validateSchoolEmail(email)) {
+    showLogin("@" + SCHOOL_DOMAIN + " の学校メールアドレスを入力してください。");
     return;
   }
-  if (SCHOOL_DOMAIN === "YOUR_SCHOOL_DOMAIN") {
-    showLogin("HTML内の SCHOOL_DOMAIN を学校のドメインに変更してください。");
+  if (password.length < 8) {
+    showLogin("パスワードは8文字以上にしてください。");
     return;
   }
-  const button = document.getElementById("google-signin-btn");
+  const button = document.getElementById("email-register-btn");
   button.disabled = true;
   try {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    // hd はGoogleログイン画面の表示補助。実際の判定は下のドメイン検証で行う。
-    provider.setCustomParameters({ hd: SCHOOL_DOMAIN, prompt: "select_account" });
-    const result = await auth.signInWithPopup(provider);
-    if (!isSchoolAccount(result.user)) {
+    const result = await auth.createUserWithEmailAndPassword(email, password);
+    try {
+      await result.user.sendEmailVerification();
       await auth.signOut();
-      showLogin("学校指定のGoogleアカウントでログインしてください。");
+      showLogin("登録しました。確認メールを送信しました。\nメール内のリンクを開いてから、ログインしてください。迷惑メールフォルダも確認してください。");
+    } catch (verificationError) {
+      console.error("確認メール送信エラー:", verificationError);
+      try { await auth.signOut(); } catch (_) {}
+      showLogin("アカウントは作成されましたが、確認メールを送信できませんでした。時間をおいてログインし、再送信できるか確認してください。");
+    }
+  } catch (error) {
+    showAuthError(error, "新規登録");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function signInWithEmail() {
+  if (!auth) return showLogin("Firebaseの設定値を確認してください。");
+  const email = document.getElementById("auth-email").value.trim();
+  const password = document.getElementById("auth-password").value;
+  if (!validateSchoolEmail(email)) {
+    showLogin("@" + SCHOOL_DOMAIN + " の学校メールアドレスを入力してください。");
+    return;
+  }
+  if (!password) {
+    showLogin("パスワードを入力してください。");
+    return;
+  }
+  const button = document.getElementById("email-signin-btn");
+  button.disabled = true;
+  try {
+    const result = await auth.signInWithEmailAndPassword(email, password);
+    await result.user.reload();
+    const user = auth.currentUser;
+    if (!user || !validateSchoolEmail(user.email)) {
+      await auth.signOut();
+      showLogin("学校指定のメールアドレスでログインしてください。");
       return;
     }
-    showApp(result.user);
+    if (!user.emailVerified) {
+      let resendMessage = "確認メールを再送信できませんでした。少し待ってからもう一度ログインしてください。";
+      try {
+        await user.sendEmailVerification();
+        resendMessage = "メールアドレスが未確認です。確認メールを再送信しました。メール内のリンクを開いてから、もう一度ログインしてください。";
+      } catch (verificationError) {
+        console.error("確認メール再送信エラー:", verificationError);
+      }
+      await auth.signOut();
+      showLogin(resendMessage + "\n迷惑メールフォルダも確認してください。");
+      return;
+    }
+    showApp(user);
     initializeAppAfterLogin();
   } catch (error) {
-    console.error("Googleログインエラー:", error);
-    showLogin("ログインできませんでした。Googleログイン設定と承認済みドメインを確認してください。");
+    showAuthError(error, "ログイン");
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function resetPassword() {
+  if (!auth) return showLogin("Firebaseの設定値を確認してください。");
+  const email = document.getElementById("auth-email").value.trim();
+  if (!validateSchoolEmail(email)) {
+    showLogin("先に @" + SCHOOL_DOMAIN + " の学校メールアドレスを入力してください。");
+    return;
+  }
+  const button = document.getElementById("password-reset-btn");
+  button.disabled = true;
+  try {
+    await auth.sendPasswordResetEmail(email);
+    showLogin("パスワード再設定メールを送信しました。受信トレイと迷惑メールフォルダを確認してください。");
+  } catch (error) {
+    showAuthError(error, "パスワード再設定");
   } finally {
     button.disabled = false;
   }
@@ -501,25 +601,37 @@ let examsData = [];
 let hrData = [];
 let taskBoardData = [];
 
-window.addEventListener("load", () => {
+window.addEventListener("load", async () => {
   if (!auth) {
     showLogin("Firebaseの設定値を確認してください。");
     return;
   }
   showLogin();
+  try {
+    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+  } catch (error) {
+    console.error("ログイン状態の保存設定エラー:", error);
+  }
   auth.onAuthStateChanged(async (user) => {
     if (!user) {
       stopRealtimeSync();
       showLogin();
       return;
     }
-    if (!isSchoolAccount(user)) {
-      await auth.signOut();
-      showLogin("学校指定のGoogleアカウントでログインしてください。");
-      return;
+    try {
+      await user.reload();
+      const refreshedUser = auth.currentUser;
+      if (!isSchoolAccount(refreshedUser)) {
+        await auth.signOut();
+        showLogin("メールアドレスの確認が完了していないか、学校指定のメールアドレスではありません。確認メール内のリンクを開いてください。");
+        return;
+      }
+      showApp(refreshedUser);
+      initializeAppAfterLogin();
+    } catch (error) {
+      console.error("ログイン状態の確認エラー:", error);
+      showLogin("ログイン状態を確認できませんでした。もう一度ログインしてください。");
     }
-    showApp(user);
-    initializeAppAfterLogin();
   });
 });
 
@@ -569,16 +681,47 @@ db.ref('task_board').on('value', (snap) => {
 
 }
 
-function pushData(path, data) {
+async function pushData(path, data) {
   if (!db) {
-    alert("Firebaseに接続できません。");
-    return Promise.reject(new Error("Firebase is not initialized"));
+    alert("Firebaseに接続できません。ページを再読み込みしてください。");
+    return false;
   }
-  return db.ref(path).set(data).catch((error) => {
+  try {
+    await db.ref(path).set(data);
+    return true;
+  } catch (error) {
     console.error("Firebase保存エラー:", path, error);
-    alert("保存できませんでした。ログイン状態とFirebaseのセキュリティルールを確認してください。");
-    return null;
-  });
+    let reason = "保存できませんでした。ログイン状態とFirebaseのセキュリティルールを確認してください。";
+    if (error && error.code === "PERMISSION_DENIED") {
+      reason = "保存が拒否されました。ログイン状態とFirebase Realtime Databaseのルールを確認してください。";
+    } else if (error && error.code === "NETWORK_ERROR") {
+      reason = "通信に失敗したため保存できませんでした。ネットワーク接続を確認してください。";
+    }
+    alert(reason);
+    // 保存失敗時は、サーバー上の値を読み直して画面上の未保存変更を戻す。
+    try {
+      const snap = await db.ref(path).once("value");
+      const value = snap.val();
+      if (path === "timetable") {
+        timeTableData = value || {};
+        updateTimetableInputs();
+        renderCalendar();
+      } else {
+        const list = normalizeList(value);
+        if (path === "events") sharedEventsData = list;
+        else if (path === "vacations") vacationsData = list;
+        else if (path === "exams") examsData = list;
+        else if (path === "hr_notices") hrData = list;
+        else if (path === "task_board") taskBoardData = list;
+        renderCalendar();
+        if (path === "hr_notices") renderHRNotices();
+        if (path === "task_board") renderTaskBoard();
+      }
+    } catch (refreshError) {
+      console.error("保存失敗後のデータ再取得にも失敗:", path, refreshError);
+    }
+    return false;
+  }
 }
 
 function escapeHTML(str) {
@@ -1056,86 +1199,110 @@ renderCalendar();
 }
 }
 
-/* --- HR委員からのお知らせ --- */
-function sendHRNotice() {
-if (!requireHR()) return;
-const text = document.getElementById('hr-text').value;
-const editIndex = parseInt(document.getElementById('hr-edit-index').value);
-
-if (!text) {
-  alert('お知らせ内容を入力してください。');
-  return;
+/* --- クラス掲示板 --- */
+function currentBoardAuthor() {
+  const user = auth && auth.currentUser;
+  if (!isSchoolAccount(user)) return null;
+  // メールアドレス全体は掲示板に表示せず、@より前の部分だけ表示する。
+  return user.email.split("@")[0];
 }
 
-const timestamp = new Date().toLocaleString();
-
-if (editIndex >= 0) {
-  hrData[editIndex] = { text, date: `${timestamp} (編集済)` };
-  cancelHREdit();
-} else {
-  hrData.unshift({ text, date: timestamp });
-}
-
-pushData('hr_notices', hrData);
-document.getElementById('hr-text').value = '';
-
+async function sendHRNotice() {
+  if (!isSchoolAccount(auth && auth.currentUser)) {
+    alert("学校の確認済みメールアドレスでログインしてください。");
+    return;
+  }
+  const text = document.getElementById("hr-text").value.trim();
+  const editIndex = Number.parseInt(document.getElementById("hr-edit-index").value, 10);
+  if (!text) {
+    alert("投稿内容を入力してください。");
+    return;
+  }
+  if (text.length > 2000) {
+    alert("投稿は2000文字以内にしてください。");
+    return;
+  }
+  const author = currentBoardAuthor();
+  const timestamp = new Date().toLocaleString("ja-JP");
+  const oldData = hrData.slice();
+  if (Number.isInteger(editIndex) && editIndex >= 0) {
+    if (!hrData[editIndex]) return;
+    const oldItem = hrData[editIndex];
+    hrData[editIndex] = {
+      text,
+      date: oldItem.date || timestamp,
+      editedAt: timestamp,
+      author: oldItem.author || author
+    };
+  } else {
+    hrData.unshift({ text, date: timestamp, author });
+  }
+  const button = document.getElementById("hr-submit-btn");
+  button.disabled = true;
+  const ok = await pushData("hr_notices", hrData);
+  button.disabled = false;
+  if (ok) cancelHREdit();
+  else hrData = oldData;
 }
 
 function editHRNotice(idx) {
-const item = hrData[idx];
-if (!item) return;
-
-document.getElementById('hr-text').value = typeof item === 'object' ? item.text : item;
-document.getElementById('hr-edit-index').value = idx;
-document.getElementById('hr-submit-btn').textContent = '変更を保存';
-document.getElementById('hr-cancel-btn').style.display = 'inline-block';
-
+  const item = hrData[idx];
+  if (!item) return;
+  document.getElementById("hr-text").value = typeof item === "object" ? (item.text || "") : String(item);
+  document.getElementById("hr-edit-index").value = idx;
+  document.getElementById("hr-form-title").textContent = "掲示板の投稿を編集";
+  document.getElementById("hr-submit-btn").textContent = "変更を保存";
+  document.getElementById("hr-cancel-btn").style.display = "inline-block";
+  document.getElementById("hr-text").focus();
 }
 
 function cancelHREdit() {
-document.getElementById('hr-edit-index').value = -1;
-document.getElementById('hr-submit-btn').textContent = 'お知らせを送信';
-document.getElementById('hr-cancel-btn').style.display = 'none';
-document.getElementById('hr-text').value = '';
+  document.getElementById("hr-edit-index").value = -1;
+  document.getElementById("hr-form-title").textContent = "クラス掲示板";
+  document.getElementById("hr-submit-btn").textContent = "投稿する";
+  document.getElementById("hr-cancel-btn").style.display = "none";
+  document.getElementById("hr-text").value = "";
 }
 
-function deleteHRNotice(idx) {
-if (!requireHR()) return;
-if (confirm('このお知らせを削除しますか？')) {
-hrData.splice(idx, 1);
-pushData('hr_notices', hrData);
-}
+async function deleteHRNotice(idx) {
+  if (!isSchoolAccount(auth && auth.currentUser)) {
+    alert("学校の確認済みメールアドレスでログインしてください。");
+    return;
+  }
+  if (!hrData[idx] || !confirm("この投稿を削除しますか？")) return;
+  const oldData = hrData.slice();
+  hrData.splice(idx, 1);
+  const ok = await pushData("hr_notices", hrData);
+  if (!ok) hrData = oldData;
+  if (Number.parseInt(document.getElementById("hr-edit-index").value, 10) === idx) cancelHREdit();
 }
 
 function renderHRNotices() {
-const listDisplay = document.getElementById('hr-list-display');
-if (!listDisplay) return;
-
-if (hrData.length === 0) {
-  listDisplay.innerHTML = '<p style="color: #777;">現在お知らせはありません。</p>';
-  return;
-}
-
-listDisplay.innerHTML = hrData.map((item, idx) => {
-  if (!item) return '';
-  const text = typeof item === 'object' ? item.text : item;
-  const date = typeof item === 'object' ? item.date : '';
-
-  return `
-    <div class="card-item hr-notice">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-        <strong style="color: #007bff;">📢 HR委員より</strong>
-        <div>
-          <span style="font-size: 0.75em; color: #888; margin-right: 8px;">${date}</span>
-          <button class="btn-small btn-edit" onclick="editHRNotice(${idx})">編集</button>
-          <button class="btn-small btn-danger" onclick="deleteHRNotice(${idx})">削除</button>
+  const listDisplay = document.getElementById("hr-list-display");
+  if (!listDisplay) return;
+  if (!hrData.length) {
+    listDisplay.innerHTML = '<p style="color:#777;">まだ投稿はありません。</p>';
+    return;
+  }
+  listDisplay.innerHTML = hrData.map((item, idx) => {
+    if (!item) return "";
+    const text = typeof item === "object" ? (item.text || "") : String(item);
+    const date = typeof item === "object" ? (item.date || "") : "";
+    const editedAt = typeof item === "object" ? (item.editedAt || "") : "";
+    const author = typeof item === "object" ? (item.author || "学校アカウント") : "学校アカウント";
+    return `
+      <div class="card-item hr-notice">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+          <strong style="color:#007bff;">${escapeHTML(author)}</strong>
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+            <span style="font-size:.75em;color:#888;">${escapeHTML(date)}${editedAt ? "（編集: " + escapeHTML(editedAt) + "）" : ""}</span>
+            <button class="btn-small btn-edit" onclick="editHRNotice(${idx})">編集</button>
+            <button class="btn-small btn-danger" onclick="deleteHRNotice(${idx})">削除</button>
+          </div>
         </div>
-      </div>
-      <p style="margin: 5px 0; font-size: 0.95em; white-space: pre-wrap;">${escapeHTML(text)}</p>
-    </div>
-  `;
-}).join('');
-
+        <p style="margin:5px 0;font-size:.95em;white-space:pre-wrap;overflow-wrap:anywhere;">${escapeHTML(text)}</p>
+      </div>`;
+  }).join("");
 }
 
 /* --- 課題掲示板 --- */
