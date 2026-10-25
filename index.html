@@ -211,7 +211,7 @@ button {
 <div class="container" id="app-container" style="display:none;">
 <h1>4Bカレンダー</h1>
 <div style="display:flex;justify-content:flex-end;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
-  <span id="signed-in-email" style="font-size:.85em;color:#555;"></span>
+  <span id="signed-in-email" style="font-size:.85em;color:#555;">ログイン中</span>
   <button type="button" onclick="signOutUser()" style="background:#6c757d;">ログアウト</button>
 </div>
 
@@ -420,7 +420,8 @@ function showApp(user) {
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("app-container").style.display = "block";
   document.getElementById("login-message").textContent = "";
-  document.getElementById("signed-in-email").textContent = user.email || "";
+  // メールアドレスは画面に表示しない（掲示板やヘッダーからの漏えい防止）。
+  document.getElementById("signed-in-email").textContent = "ログイン中";
 }
 
 function isSchoolAccount(user) {
@@ -693,7 +694,7 @@ async function pushData(path, data) {
     console.error("Firebase保存エラー:", path, error);
     let reason = "保存できませんでした。ログイン状態とFirebaseのセキュリティルールを確認してください。";
     if (error && error.code === "PERMISSION_DENIED") {
-      reason = "保存が拒否されました。ログイン状態とFirebase Realtime Databaseのルールを確認してください。";
+      reason = "Firebaseに保存を拒否されました。ログイン自体が成功していても、Realtime Databaseのルールで task_board への書き込みが許可されていない可能性があります。Firebase Console → Realtime Database → ルール を確認してください。詳細は開発者ツールのConsoleにも記録しています。";
     } else if (error && error.code === "NETWORK_ERROR") {
       reason = "通信に失敗したため保存できませんでした。ネットワーク接続を確認してください。";
     }
@@ -1203,8 +1204,8 @@ renderCalendar();
 function currentBoardAuthor() {
   const user = auth && auth.currentUser;
   if (!isSchoolAccount(user)) return null;
-  // メールアドレス全体は掲示板に表示せず、@より前の部分だけ表示する。
-  return user.email.split("@")[0];
+  // 掲示板にはメールアドレス由来の文字列を表示しない。
+  return "4Bメンバー";
 }
 
 async function sendHRNotice() {
@@ -1306,132 +1307,164 @@ function renderHRNotices() {
 }
 
 /* --- 課題掲示板 --- */
-function postTask() {
-const title = document.getElementById('task-title').value;
-const detail = document.getElementById('task-detail').value;
-const fileInput = document.getElementById('task-image');
-const file = fileInput ? fileInput.files[0] : null;
-const editIndex = parseInt(document.getElementById('task-edit-index').value);
+async function postTask() {
+  if (!isSchoolAccount(auth && auth.currentUser)) {
+    alert('学校の確認済みメールアドレスでログインしてください。');
+    return;
+  }
+  const title = document.getElementById('task-title').value.trim();
+  const detail = document.getElementById('task-detail').value.trim();
+  const fileInput = document.getElementById('task-image');
+  const file = fileInput ? fileInput.files[0] : null;
+  const editIndex = Number.parseInt(document.getElementById('task-edit-index').value, 10);
 
-if (!title) {
-  alert('科目・タイトルを入力してください。');
-  return;
-}
-
-const timestamp = new Date().toLocaleString();
-
-if (file) {
-  if (!file.type.startsWith('image/')) {
+  if (!title) {
+    alert('科目・タイトルを入力してください。');
+    return;
+  }
+  if (title.length > 200 || detail.length > 4000) {
+    alert('タイトルは200文字以内、詳細は4000文字以内にしてください。');
+    return;
+  }
+  if (file && !file.type.startsWith('image/')) {
     alert('画像ファイルを選択してください。');
     return;
   }
-  if (file.size > 2 * 1024 * 1024) {
-    alert('画像は2MB以下にしてください。Realtime Databaseへの巨大な画像保存は避けてください。');
+  if (file && file.size > 2 * 1024 * 1024) {
+    alert('画像は2MB以下にしてください。Realtime Databaseへの大きな画像保存は避けてください。');
     return;
   }
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    saveTaskEntry({ title, detail, image: e.target.result, date: timestamp }, editIndex);
-  };
-  reader.onerror = function() {
-    alert('画像を読み込めませんでした。別の画像を選択してください。');
-  };
-  reader.readAsDataURL(file);
-} else {
-  let existingImage = null;
-  if (editIndex >= 0 && taskBoardData[editIndex]) {
-    existingImage = taskBoardData[editIndex].image;
+
+  const button = document.getElementById('task-submit-btn');
+  button.disabled = true;
+  try {
+    let imageData = null;
+    if (file) {
+      imageData = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('画像を読み込めませんでした。'));
+        reader.readAsDataURL(file);
+      });
+    } else if (Number.isInteger(editIndex) && editIndex >= 0 && taskBoardData[editIndex]) {
+      imageData = taskBoardData[editIndex].image || null;
+    }
+
+    const timestamp = new Date().toLocaleString('ja-JP');
+    const oldData = taskBoardData.slice();
+    const oldItem = Number.isInteger(editIndex) && editIndex >= 0 ? taskBoardData[editIndex] : null;
+    const newTask = {
+      title,
+      detail,
+      image: imageData,
+      date: oldItem && oldItem.date ? oldItem.date : timestamp,
+      editedAt: oldItem ? timestamp : '',
+      // メールアドレスやその一部はデータに保存せず、表示名は固定する。
+      author: '4Bメンバー'
+    };
+
+    if (Number.isInteger(editIndex) && editIndex >= 0) {
+      if (!oldItem) {
+        alert('編集対象の課題が見つかりません。ページを更新してください。');
+        return;
+      }
+      taskBoardData[editIndex] = newTask;
+    } else {
+      taskBoardData.unshift(newTask);
+    }
+
+    const ok = await pushData('task_board', taskBoardData);
+    if (ok) {
+      cancelTaskEdit();
+      document.getElementById('task-image-preview').textContent = '';
+    } else {
+      taskBoardData = oldData;
+      renderTaskBoard();
+    }
+  } catch (error) {
+    console.error('課題の保存準備中にエラー:', error);
+    alert(error.message || '課題を保存できませんでした。');
+  } finally {
+    button.disabled = false;
   }
-  saveTaskEntry({ title, detail, image: existingImage, date: timestamp }, editIndex);
-}
-
-}
-
-function saveTaskEntry(newTask, editIndex) {
-if (editIndex >= 0) {
-taskBoardData[editIndex] = newTask;
-cancelTaskEdit();
-} else {
-taskBoardData.unshift(newTask);
-}
-
-pushData('task_board', taskBoardData);
-
-document.getElementById('task-title').value = '';
-document.getElementById('task-detail').value = '';
-const fileInput = document.getElementById('task-image');
-if (fileInput) fileInput.value = '';
-
 }
 
 function editTask(idx) {
-const item = taskBoardData[idx];
-if (!item) return;
-
-document.getElementById('task-title').value = item.title || '';
-document.getElementById('task-detail').value = item.detail || '';
-document.getElementById('task-edit-index').value = idx;
-
-const preview = document.getElementById('task-image-preview');
-if (item.image) {
-  preview.textContent = '※既に画像が添付されています（選択し直さない場合はそのまま保持されます）';
-} else {
-  preview.textContent = '';
-}
-
-document.getElementById('task-form-title').textContent = '課題の編集';
-document.getElementById('task-submit-btn').textContent = '変更を保存';
-document.getElementById('task-cancel-btn').style.display = 'inline-block';
-
+  const item = taskBoardData[idx];
+  if (!item) return;
+  document.getElementById('task-title').value = item.title || '';
+  document.getElementById('task-detail').value = item.detail || '';
+  document.getElementById('task-edit-index').value = idx;
+  const preview = document.getElementById('task-image-preview');
+  preview.textContent = item.image
+    ? '※既に画像が添付されています（画像を選び直さなければ保持されます）'
+    : '';
+  document.getElementById('task-form-title').textContent = '課題の編集';
+  document.getElementById('task-submit-btn').textContent = '変更を保存';
+  document.getElementById('task-cancel-btn').style.display = 'inline-block';
+  document.getElementById('task-title').focus();
 }
 
 function cancelTaskEdit() {
-document.getElementById('task-edit-index').value = -1;
-document.getElementById('task-form-title').textContent = '課題掲示板（写真添付可・全員共有）';
-document.getElementById('task-submit-btn').textContent = '課題を投稿する';
-document.getElementById('task-cancel-btn').style.display = 'none';
-document.getElementById('task-title').value = '';
-document.getElementById('task-detail').value = '';
-document.getElementById('task-image-preview').textContent = '';
-const fileInput = document.getElementById('task-image');
-if (fileInput) fileInput.value = '';
+  document.getElementById('task-edit-index').value = -1;
+  document.getElementById('task-form-title').textContent = '課題掲示板（写真添付可・全員共有）';
+  document.getElementById('task-submit-btn').textContent = '課題を投稿する';
+  document.getElementById('task-cancel-btn').style.display = 'none';
+  document.getElementById('task-title').value = '';
+  document.getElementById('task-detail').value = '';
+  document.getElementById('task-image-preview').textContent = '';
+  const fileInput = document.getElementById('task-image');
+  if (fileInput) fileInput.value = '';
 }
 
-function deleteTask(idx) {
-if (confirm('この課題を削除しますか？')) {
-taskBoardData.splice(idx, 1);
-pushData('task_board', taskBoardData);
-}
+async function deleteTask(idx) {
+  if (!isSchoolAccount(auth && auth.currentUser)) {
+    alert('学校の確認済みメールアドレスでログインしてください。');
+    return;
+  }
+  if (!taskBoardData[idx] || !confirm('この課題を削除しますか？')) return;
+  const oldData = taskBoardData.slice();
+  taskBoardData.splice(idx, 1);
+  const ok = await pushData('task_board', taskBoardData);
+  if (!ok) {
+    taskBoardData = oldData;
+    renderTaskBoard();
+  }
 }
 
 function renderTaskBoard() {
-const listDisplay = document.getElementById('task-board-list');
-if (!listDisplay) return;
-
-if (taskBoardData.length === 0) {
-  listDisplay.innerHTML = '<p style="color: #777;">現在投稿されている課題はありません。</p>';
-  return;
-}
-
-listDisplay.innerHTML = taskBoardData.map((item, idx) => {
-  if (!item) return '';
-  return `
-    <div class="card-item task">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-        <strong style="color: #d9534f; font-size: 1.05em;">📚 ${escapeHTML(item.title)}</strong>
-        <div>
-          <span style="font-size: 0.75em; color: #888; margin-right: 8px;">${item.date || ''}</span>
-          <button class="btn-small btn-edit" onclick="editTask(${idx})">編集</button>
-          <button class="btn-small btn-danger" onclick="deleteTask(${idx})">削除</button>
+  const listDisplay = document.getElementById('task-board-list');
+  if (!listDisplay) return;
+  if (taskBoardData.length === 0) {
+    listDisplay.innerHTML = '<p style="color:#777;">現在投稿されている課題はありません。</p>';
+    return;
+  }
+  listDisplay.innerHTML = taskBoardData.map((item, idx) => {
+    if (!item) return '';
+    const title = escapeHTML(item.title || '（タイトルなし）');
+    const detail = escapeHTML(item.detail || '');
+    const date = escapeHTML(item.date || '');
+    const editedAt = escapeHTML(item.editedAt || '');
+    const image = typeof item.image === 'string' && item.image.startsWith('data:image/')
+      ? `<div style="margin-top:8px;"><img src="${item.image}" alt="課題の添付画像" style="max-width:100%;max-height:500px;object-fit:contain;border-radius:4px;border:1px solid #ddd;"></div>`
+      : '';
+    return `
+      <div class="card-item task">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+          <strong style="color:#d9534f;font-size:1.05em;">📚 ${title}</strong>
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+            <span style="font-size:.75em;color:#888;">${date}${editedAt ? '（編集: ' + editedAt + '）' : ''}</span>
+            <button class="btn-small btn-edit" onclick="editTask(${idx})">編集</button>
+            <button class="btn-small btn-danger" onclick="deleteTask(${idx})">削除</button>
+          </div>
         </div>
-      </div>
-      <p style="margin: 5px 0; font-size: 0.9em; white-space: pre-wrap;">${escapeHTML(item.detail)}</p>
-      ${item.image ? `<div style="margin-top: 8px;"><img src="${escapeHTML(item.image)}" style="max-width: 100%; border-radius: 4px; border: 1px solid #ddd;"></div>` : ''}
-    </div>
-  `;
-}).join('');
-
+        <div style="font-size:.8em;color:#666;margin-bottom:4px;">投稿者：4Bメンバー</div>
+        <p style="margin:5px 0;font-size:.9em;white-space:pre-wrap;overflow-wrap:anywhere;">${detail}</p>
+        ${image}
+      </div>`;
+  }).join('');
 }
+
 </script>
 </body>
 </html>
